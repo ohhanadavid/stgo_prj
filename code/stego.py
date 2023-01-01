@@ -26,7 +26,6 @@ PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 def find_path(dir_in_path):
-
     files = os.walk(PATH + r'\\' + dir_in_path)
     return list(files)[0][-1]
 
@@ -151,8 +150,8 @@ def encode_info(t, data, img=""):
     if data.__class__ is str:
         data = data.encode()
     else:
-        data=pickle.dumps(data)
-        data=base64.b64encode(data)
+        data = pickle.dumps(data)
+        data = base64.b64encode(data)
     data = "".join([format(n, '08b') for n in data])
     if len(data) == 0:
         raise ValueError('Data is empty')
@@ -187,7 +186,7 @@ def encode_info(t, data, img=""):
             page_obj = pdf_file.pages[c]
 
     new_img_name = PATH + r"\\images\\ptt.png"
-    save_image=encode_enc(image, data, lendata, codex, prime(h), prime(m))
+    save_image = encode_enc(image, data, lendata, codex, prime(h), prime(m))
     save_image.save(new_img_name, str(new_img_name.split(".")[1].upper()))
     return save_image
 
@@ -286,7 +285,7 @@ def main():
     print(pt.localtime())
 
     i = Image.open(PATH + r"\\images\\ptt.png", 'r')
-    u=encode_info(pt.localtime(),"aba sabbab fkfgkf",'dd.png')
+    u = encode_info(pt.localtime(), "aba sabbab fkfgkf", 'dd.png')
 
     print(decode_info(u))
 

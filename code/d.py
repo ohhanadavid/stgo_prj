@@ -12,11 +12,13 @@ from PIL import Image
 
 import subprocess
 from future.moves import *
-
+import io
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
 
+g="sdfsdf"
+print(g.__class__.__name__)
 f = "True"
 """
 # Open the save dialog window
@@ -58,11 +60,15 @@ def inp(inpt, f):
 def s(b):
     filer = str(b.get(1.0, END))
     print(filer)
-    b.quit()
+    b.clipboard_clear()
+
 
 
 def u(f,c):
-    print("start")
+
+
+
+    print(c)
     f = "False"
     w = Tk()
     b = Text(w)
@@ -86,11 +92,14 @@ root.mainloop()
 root.destroy()
 """
 try:
-
-
+    c=""
     while True:
+
         if msvcrt.kbhit() and f == "True":
-            t = threading.Thread(target=u(f,msvcrt.getche().decode()))
+            while msvcrt.kbhit():
+                c+=msvcrt.getche().decode()
+
+            t = threading.Thread(target=u(f,c))
             t.start()
         # print(x)
         x += 1
