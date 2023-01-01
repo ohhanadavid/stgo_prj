@@ -1,4 +1,5 @@
 # importing required modules
+import binascii
 import math
 import os
 import pickle
@@ -136,7 +137,7 @@ def encode_info(t, data, img=""):
     pdf_file_obj = PATH + r'\\file\\' + books[num_book]
     pdf_file_obj = open(pdf_file_obj, 'rb')
     # creating a pdf reader object
-    pdf_file = PyPDF2.PdfFileReader(pdf_file_obj)
+    pdf_file = PyPDF2.PdfReader(pdf_file_obj)
     if img == "":
         images_in_dir = find_path('images')
         img = PATH + r'\\images\\' + images_in_dir[random.randint(0, len(images_in_dir))]
@@ -161,19 +162,19 @@ def encode_info(t, data, img=""):
         rows = math.ceil(math.sqrt(lendata * 3) * ratio)
         columns = math.ceil(math.sqrt(lendata * 3) / ratio * 3)
         image = image.resize((rows, columns))
-    pages = pdf_file.numPages
+    pages = len(pdf_file.pages)
 
     h = t.tm_hour.real
     m = t.tm_min.real
     c = (h * m) % pages
-    page_obj = pdf_file.getPage(c)
+    page_obj = pdf_file.pages[c]
     codex = ""
     while len(codex) < lendata * 3:
         try:
             print(c)
-            codex += page_obj.extractText()
+            codex += page_obj.extract_text()
             c += 1
-            page_obj = pdf_file.getPage(c)
+            page_obj = pdf_file.pages[c]
         except IndexError:
             if num_book + 1 < len(books):
                 num_book += 1
@@ -181,9 +182,9 @@ def encode_info(t, data, img=""):
                 num_book = 0
             pdf_file_obj = PATH + r'\\file\\' + books[num_book]
             pdf_file_obj = open(pdf_file_obj, 'rb')
-            pdf_file = PyPDF2.PdfFileReader(pdf_file_obj)
+            pdf_file = PyPDF2.PdfReader(pdf_file_obj)
             c = 0
-            page_obj = pdf_file.getPage(c)
+            page_obj = pdf_file.pages[c]
 
     new_img_name = PATH + r"\\images\\ptt.png"
     save_image=encode_enc(image, data, lendata, codex, prime(h), prime(m))
@@ -198,23 +199,23 @@ def decode_image(image):
     pdf_file_obj = PATH + r'\\file\\' + books[num_book]
     pdf_file_obj = open(pdf_file_obj, 'rb')
     # creating a pdf reader object
-    pdf_file = PyPDF2.PdfFileReader(pdf_file_obj)
+    pdf_file = PyPDF2.PdfReader(pdf_file_obj)
     # img = input("Enter image name(with extension) : ")
     # img = PATH + r"\\images\\ptt.png"
     # image = Image.open(img, 'r')
     num_of_lines_pix = image.size[0]
     num_of_row_pix = image.size[1]
     list_pix = []
-    pages = pdf_file.numPages
+    pages = len(pdf_file.pages)
     h = image.info['date'].tm_hour.real
     m = image.info['date'].tm_min.real
     s = (h * m) % pages
-    page_obj = pdf_file.getPage(s)
+    page_obj = pdf_file.pages[s]
     primeh = prime(h)
     primem = prime(m)
     data = ''
     xy = []
-    c = iter(page_obj.extractText())
+    c = iter(page_obj.extract_text())
     count = 0
     binstr = ''
     while True:
@@ -233,7 +234,7 @@ def decode_image(image):
                     pdf_file = PyPDF2.PdfFileReader(pdf_file_obj)
                     s = 0
 
-                page_obj = pdf_file.getPage(s)
+                page_obj = pdf_file.pages[s]
                 c = iter(page_obj.extractText())
                 xy.append(ord(c.__next__()))
 
@@ -266,15 +267,15 @@ def decode_image(image):
 
 def decode_info(image):
     data = decode_image(image)
-    print(data)
-    decoded_b64 = base64.b64decode(data)
-    info = pickle.loads(decoded_b64)
-    if type(info) is str:
-        return info
-    elif type(info) is Image:
-        new_img_name = PATH + r"\\images\\" + image.info['image name']
-        info.save(new_img_name, str(new_img_name.split(".")[1].upper()))
-        return "image save in: " + new_img_name
+    try:
+        decoded_b64 = base64.b64decode(data)
+        info = pickle.loads(decoded_b64)
+    except binascii.Error:
+        return data
+
+    new_img_name = PATH + r"\\images\\" + image.info['image name']
+    info.save(new_img_name, str(new_img_name.split(".")[1].upper()))
+    return "image save in: " + new_img_name
 
 
 def main():
@@ -284,24 +285,8 @@ def main():
 
     print(pt.localtime())
 
-    """
-    i.info['dfdf'] = 9
-
-    p = pickle.dumps(i)
-    p = base64.b64encode(p)
-    ii = "".join([format(n, '08b') for n in p])
-    decoded_b64 = b"".join([bytes(chr(int(ii[i:i + 8], 2)), "utf-8") for i in range(0, len(ii), 8)])
-    p = base64.b64decode(decoded_b64)
-    p = pickle.loads(p)
-    new_img_name = PATH + r"\\images\\chackkkk.png"
-    i.save(new_img_name, str(new_img_name.split(".")[1].upper()))
-
-    t = time.localtime()
-
-    s = time.time()
-    """
     i = Image.open(PATH + r"\\images\\ptt.png", 'r')
-    u=encode_info(pt.localtime(),i,'dd.png')
+    u=encode_info(pt.localtime(),"aba sabbab fkfgkf",'dd.png')
 
     print(decode_info(u))
 
