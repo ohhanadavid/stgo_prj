@@ -48,9 +48,6 @@ def get_msg(my_socket):
                 data = my_socket.recv(int(data_length))
                 decoded_b64 = base64.b64decode(data)
                 data = pickle.loads(decoded_b64)
-                if data.__class__ is Image:
-                    if "date" in data.info.keys() and data.info["date"].__class__ is time:
-                        data = stego.decode_info(data)
                 return True, data_type, data
 
         except:

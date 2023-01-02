@@ -11,26 +11,88 @@ from protocol import *
 import select
 import msvcrt
 import threading
+import tkinter.messagebox as messagebox
+
+msg_input = ""
+
+CONTECT_MENU = dict()
+SERVER_RESPONSE = ""
+TYPE_SERVER_RESPONSE = ""
+
+window_input = Tk()
+window_output = Tk()
+
+text_input = Text(window_input)
+text_output = Text(window_output)
 
 
-def end_input(text_box, end_input):
-    end_input = str(text_box.get(1.0, END))
-    print(end_input)
-    text_box.clipboard_clear()
+def update_window_input():
+    window_input.after(500,update_window_input)
+
+def update_window_output():
+    window_output.after(500, update_window_output())
+
+def end_input(my_socket):
+    msg_input = str(text_input.get(1.0, END))
+    msg = msg_input.split("'\n", 1)
+    contact = msg[0][3:]
+    massage = msg[1][8:]
+    if contact in CONTECT_MENU.keys():
+        send_msg = CONTECT_MENU[contact] + massage
+    else:
+        my_socket.send("get_names")
+
+    text_input.delete("1.0", END)
 
 
-def input_function(f, start_input, titel, return_input=""):
+def open_group():
+    open_group_massage = "please enter group name :"
+    people = "\nplease enter contact people spread by , :"
+    text_input.delete("1.0", END)
+    text_input.insert(END, open_group_massage)
+    text_input.insert(END, people)
+    data = str(text_input.get(1.0, END)).split('\n')
+    group_name = data[0][len(open_group_massage):]
+    if group_name in CONTECT_MENU.keys():
+        if not messagebox.showinfo("Info", '\nThis name already exists, do you want to replace it?'):
+            return
+    CONTECT_MENU[group_name] = data[1][len(people):].split(',')
+
+
+def input_function(my_socket, start_input, return_input=""):
     print(start_input)
-    f = "False"
-    window_input = Tk()
-    window_input.title(titel)
-    text = Text(window_input)
-    text.insert(END, start_input)
-    button = Button(text="cmd", command=lambda: end_input(text, return_input))
+    window_input.title("MASSAGE")
+
+    text_input.insert(END, 'To: ')
+    text_input.insert(END, start_input)
+    text_input.insert(END, '\nMassage: ')
+    button = Button(text="send", command=lambda: end_input(my_socket), compound='bottom')
     button.pack()
-    text.pack()
+    text_input.pack()
+    window_input.after(500, update_window_input)
     window_input.mainloop()
-    f = "True"
+
+
+def update_output_massage(text, my_socket):
+    rlist, wlist, xlist = select.select([my_socket], [], [])
+    if my_socket in rlist:
+        include_length_field, data = get_msg(my_socket)
+        if include_length_field:
+            text.insert(END, '\n' + data)
+        else:
+            try:
+                my_socket.send(create_msg("There is no length field!"))
+                my_socket.recv(1024)
+            except ConnectionAbortedError:
+                return
+
+
+def output_function(window_output, my_socket):
+    window_output.title("MASSAGE")
+    text = Text(window_output)
+    text.pack()
+    window_output.after(500, update_window_output())
+    window_output.mainloop()
 
 
 def main():
@@ -42,16 +104,17 @@ def main():
         print("enter commend")
         user_input = ""
         ch = ""
-        input_window = "True"
+
         while True:
 
             rlist, wlist, xlist = select.select(sel, sel, [])
 
-            if msvcrt.kbhit() and input_window == "True":
+            if msvcrt.kbhit() and not window_input.winfo_exists():
                 while msvcrt.kbhit():
                     ch += msvcrt.getche().decode()
-                input_thred=threading.Thread(input_function(input_window,ch,"commend input",user_input))
-                input_thred.start()
+                input_thread = threading.Thread(
+                    input_function(my_socket, ch, "commend input", user_input))
+                input_thread.start()
 
             if my_socket in rlist:
                 include_length_field, data = get_msg(my_socket)

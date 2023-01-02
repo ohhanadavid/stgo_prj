@@ -73,6 +73,8 @@ def u(f,c):
     w = Tk()
     b = Text(w)
     b.insert(END, c)
+    b.insert(END,'\nTo:')
+    b.insert(END, '\nSubject:')
     o = Button(text="cmd", command=lambda: s(b))
     o.pack()
 
@@ -91,7 +93,19 @@ b.pack()
 root.mainloop()
 root.destroy()
 """
+def o(c):
+    while c != "":
+        print (c)
+
 try:
+    c="a"
+    p=threading.Thread(target=o(c))
+    p.start()
+    for i in range(10):
+        c+='a'
+    c=""
+
+
     c=""
     while True:
 
