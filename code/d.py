@@ -22,6 +22,13 @@ from  PIL import Image
 
 import tkinter as tk
 
+d=dict()
+d['r']="asd"
+d['tt']="fdgd"
+for i in d.items():
+    print(i)
+
+
 # Create the main window
 window = tk.Tk()
 
