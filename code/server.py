@@ -92,7 +92,11 @@ def message(client_socket, data):
         MESSAGES_TO_SEND.append((client_socket, create_msg("no client with this name")))
 
 
-def check_cmd(data, client_socket):
+def get_name(client_socket):
+    pass
+
+
+def check_cmd(data,to_msg, client_socket):
     """
     Checking that the commands are recognized
     :param data:
@@ -103,6 +107,8 @@ def check_cmd(data, client_socket):
     cmd[0] = cmd[0].lower()
     if cmd[0] == "get_names":
         get_names(client_socket)
+    if cmd[0] == "get_name":
+        get_name(client_socket)
     elif cmd[0] == "exit":
         closing_client(client_socket)
     elif cmd[0] == "name":
@@ -133,14 +139,15 @@ def main():
                 else:
                     flag = bool
                     data = str
+                    to_msg=""
                     try:
-                        flag, data = get_msg(current_socket)
+                        flag, to_msg, data = get_msg(current_socket)
 
                     except ConnectionResetError:
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))
 
                     if flag:
-                        check_cmd(data, current_socket)
+                        check_cmd(data,to_msg, current_socket)
                     else:
                         # if client fall by ctrl+c
                         if data == "":

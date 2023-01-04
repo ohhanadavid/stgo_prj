@@ -10,7 +10,7 @@ import sys
 import time
 import tkinter.filedialog
 from tkinter import *
-
+import multiprocessing
 from protocol import *
 from stego import *
 from protocol import *
@@ -41,21 +41,39 @@ messages_to_write = []
 CONTECT_MENU = dict()
 SERVER_RESPONSE = ""
 TYPE_SERVER_RESPONSE = ""
-
+BLACK_LIST_SIMBOLD = "[]{}"
+text_output_lock = threading.Lock()
+massage_list_lock = threading.Lock()
 
 # window_output = Tk()
-
+def call_send_massage():
+    send_massage(OutputType.sending, False)
+def call_send_massage_e():
+    send_massage(OutputType.sending_e, False)
+def call_send_image():
+    send_massage(OutputType.sending, True)
+def call_send_image_e():
+    send_massage(OutputType.sending_e, True)
 
 def send_massage(encode, image):
-    to_input = str(text_input_to.get(1.0, END))
-    to_input = [to_input.split(',')]
+    to_input = str(text_input_to.get())
+    for i in to_input:
+        if i in BLACK_LIST_SIMBOLD:
+            label_error.configure(text="name contect cant include [,],{,}!")
+
+            return
+    label_error.configure(text="")
+    if ',' in to_input:
+        to_input = {to_input.split(',')}
+    else:
+        to_input = {to_input}
     msg = ""
     if not image:
         msg = str(text_input_massage.get(1.0, END))
     elif image:
         img = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(("Image files", "*.png"),))
         msg = Image.open(img, 'r')
-    send_to = []
+    send_to = set()
     if encode is OutputType.sending_e:
         path_image = tkinter.filedialog.askopenfilename(title="open image", filetypes=(("Image files", "*.png"),))
         encoded_image = encode_info(time.localtime(), msg, path_image)
@@ -64,27 +82,37 @@ def send_massage(encode, image):
         msg = "".join([format(n, '08b') for n in msg])
     for i in to_input:
         if i in CONTECT_MENU.keys():
-            send_to.append(CONTECT_MENU[i])
-        send_to.append(i)
+            send_to.add([CONTECT_MENU[i]])
+        send_to.add(i)
 
-    send_msg = (json.dumps(send_to), "msg", to_input, msg, encode)
-    messages_to_write.append(send_msg)
-    text_input_to.delete("1.0", END)
+    send_msg = (str(send_to), "msg", to_input, msg, encode)
+    with massage_list_lock:
+        massage_list_lock.acquire(blocking=False)
+        messages_to_write.append(send_msg)
+        massage_list_lock.release()
+    text_input_to.delete(0, END)
+    text_input_massage.delete(1.0, END)
+    return
 
 
 def open_group():
     def create_group():
-        group_name = str(text_group_name.get(1.0, END))
+        group_name = str(text_group_name.get())
+        for i in group_name:
+            if i in BLACK_LIST_SIMBOLD:
+                label_error.configure(text="name contect cant include [,],{,}!")
+                return
         if group_name in CONTECT_MENU.keys():
             if not messagebox.askquestion("Info", 'This name already exists, do you want to replace it?'):
                 return
-        people = str(text_group_people.get(1.0, END)).split(',')
-        CONTECT_MENU[group_name] = people
+        peoples = set(str(text_group_people.get(1.0, END)).split(','))
+        CONTECT_MENU[group_name] = peoples
         group_window.destroy()
 
     group_window = Tk()
+    label_error = Label(group_window)
     group_window.title("create group")
-    text_group_name = Text(group_window, width=20, height=1)
+    text_group_name = Entry(group_window, width=20)
     text_group_people = Text(group_window, width=20, height=30)
     ok_button = Button(group_window, text="OK",
                        command=create_group)
@@ -93,6 +121,7 @@ def open_group():
     open_group_massage.pack()
     text_group_name.pack()
     people.pack()
+    label_error.pack()
     text_group_people.pack()
     ok_button.pack()
     group_window.mainloop()
@@ -126,44 +155,86 @@ def output_function(window_output, my_socket):
 
 
 def main1():
+    text_output.configure(state=NORMAL)
+    co = 0
+    while True:
+        for i in range(5):
+            text_output.insert(END, str(co) + "\n")
+        text_output.delete(1.0, END)
+        co += 1
+
     while True:
         try:
 
             rlist, wlist, xlist = select.select([my_socket], [my_socket], [])
 
             if my_socket in rlist:
+
                 text_output.config(state=NORMAL)
                 include_length_field, from_how, data = get_msg(my_socket)
                 if include_length_field:
-                    if from_how == "srver":
+                    if from_how == "server":
                         data = data.split
-                    text_output.insert(END, '\n\r' + from_how + '\n\r', OutputType.receive.value)
+                    with text_output_lock:
+                        text_output_lock.acquire(blocking=False)
+                        text_output.config(state=NORMAL)
+                        text_output.insert(END, '\n\r' + from_how + '\n\r', OutputType.receive.value)
+                        text_output.config(state=DISABLED)
+                        text_output_lock.release()
                     if data is Image:
                         if "date" in data.info.keys():
                             stego.decode_info(data)
-                            text_output.insert(END, '\n\r' + '** ' + data + ' **', OutputType.receive_e.value)
+                            with text_output_lock:
+                                text_output_lock.acquire(blocking=False)
+                                text_output.config(state=NORMAL)
+                                text_output.insert(END, '\n\r' + '** ' + data + ' **', OutputType.receive_e.value)
+                                text_output.config(state=DISABLED)
+                                text_output_lock.release()
                         else:
                             data = PhotoImage(data)
-                            text_output.image_create(END, data)
+                            with text_output_lock:
+                                text_output_lock.acquire(blocking=False)
+                                text_output.config(state=NORMAL)
+                                text_output.image_create(END, data)
+                                text_output.config(state=DISABLED)
+                                text_output_lock.release()
                     else:
-                        text_output.insert(END, '\n\r' + data, OutputType.receive.value)
-                    text_output.config(state=DISABLED)
+                        with text_output_lock:
+                            text_output_lock.acquire(blocking=False)
+                            text_output.config(state=NORMAL)
+                            text_output.insert(END, '\n\r' + data, OutputType.receive.value)
+                            text_output.config(state=DISABLED)
+                            text_output_lock.release()
+
+
                 else:
                     try:
                         my_socket.send(create_msg("There is no length field!"))
                         my_socket.recv(1024)
                     except ConnectionAbortedError:
+                        if text_output_lock.locked():
+                            text_output.config(state=DISABLED)
+                            text_output_lock.release()
                         return
+
             for message in messages_to_write:
                 send_to, cmd, to_input, data, encrypt = message
                 if my_socket in wlist:
                     my_socket.send(create_msg(cmd + send_to + data))
-                    if encrypt is OutputType.sending:
-                        text_output.insert(END, '\n\r' + to_input + '\n\r' + data, OutputType.sending.value)
-                    elif encrypt is OutputType.sending_e:
-                        text_output.insert(END, '\n\r' + to_input + '\n\r' + "** " + data + " **",
-                                           OutputType.sending_e.value)
-                    messages_to_write.remove(message)
+                    with text_output_lock:
+                        text_output_lock.acquire(blocking=False)
+                        text_output.config(state=NORMAL)
+                        if encrypt is OutputType.sending:
+                            text_output.insert(END, '\n\r' + to_input + '\n\r' + data, OutputType.sending.value)
+                        elif encrypt is OutputType.sending_e:
+                            text_output.insert(END, '\n\r' + to_input + '\n\r' + "** " + data + " **",
+                                               OutputType.sending_e.value)
+                        text_output.config(state=DISABLED)
+                        text_output_lock.release()
+                    with massage_list_lock:
+                        massage_list_lock.acquire(blocking=False)
+                        messages_to_write.remove(message)
+                        massage_list_lock.release()
                 if not window.winfo_exists():
                     print("Closing\n")
                     my_socket.close()
@@ -177,33 +248,60 @@ def main1():
 def get_contect_info():
     for item in CONTECT_MENU.items():
         if item[1] is not list:
-            text_output.insert(END, '\n\r' + item[0] + ': ' + item[1] + ',', OutputType.system_info.value)
+            with text_output_lock:
+                text_output_lock.acquire(blocking=False)
+                text_output.config(state=NORMAL)
+                text_output.insert(END, '\n\r' + item[0] + ': ' + item[1] + ',', OutputType.system_info.value)
+                text_output.config(state=DISABLED)
+                text_output_lock.release()
         else:
-            text_output.insert(END, '\n\r' + item[0] + ': ', OutputType.system_info.value)
+            with text_output_lock:
+                text_output_lock.acquire(blocking=False)
+                text_output.config(state=NORMAL)
+                text_output.insert(END, '\n\r' + item[0] + ': ', OutputType.system_info.value)
+                text_output.config(state=DISABLED)
+                text_output_lock.release()
             c = ""
             for k in range(len(item[0] + 2)):
                 c += " "
-            text_output.insert(END, (',\n' + c).join(item[1]), OutputType.system_info.value)
+            with text_output_lock:
+                text_output_lock.acquire(blocking=False)
+                text_output.config(state=NORMAL)
+                text_output.insert(END, (',\n' + c).join(item[1]), OutputType.system_info.value)
+                text_output.config(state=DISABLED)
+                text_output_lock.release()
 
 
 def get_names():
-    messages_to_write.append(("", "get_names", "", "", OutputType.sending))
+    with massage_list_lock:
+        massage_list_lock.acquire(blocking=False)
+        messages_to_write.append(("", "get_names", "", "", OutputType.sending))
+        massage_list_lock.release()
 
 
 def change_name():
-    def change_name():
-        new_name = str(text_new_name.get(1.0, END))
-        send_msg = ("", "name", "", new_name, OutputType.sending)
-        messages_to_write.append(send_msg)
+    def change_name_action():
+        new_name = str(text_new_name.get())
+        for i in new_name:
+            if i in BLACK_LIST_SIMBOLD:
+                label_error.configure(text="name contect cant include [,],{,}!")
+                return
+        send_msg = ("", "name ", "", new_name, OutputType.sending)
+        with massage_list_lock:
+            massage_list_lock.acquire(blocking=False)
+            messages_to_write.append(send_msg)
+            massage_list_lock.release()
         new_name_win.destroy()
 
     new_name_win = Tk()
+    label_error = Label(new_name_win)
     new_name_win.title("create group")
-    text_new_name = Text(new_name_win, width=20, height=1)
-    ok_button = Button(new_name_win, text="OK", command=change_name)
+    text_new_name = Entry(new_name_win, width=20)
+    ok_button = Button(new_name_win, text="OK", command=change_name_action)
     new_name_massage = Label(new_name_win, text="please enter new  name :", width=25, height=1)
     new_name_massage.pack()
     text_new_name.pack()
+    label_error.pack()
 
     ok_button.pack()
     new_name_win.mainloop()
@@ -211,18 +309,23 @@ def change_name():
 
 def add_people():
     def create_people():
-        group_name = str(text__name.get(1.0, END))
-        if group_name in CONTECT_MENU.keys():
+        name = str(text__name.get())
+        for i in name:
+            if i in BLACK_LIST_SIMBOLD:
+                label_error.configure(text="name contect cant include [,],{,}!")
+                return
+        if name in CONTECT_MENU.keys():
             if not messagebox.askquestion("Info", 'This name already exists, do you want to replace it?'):
                 return
-        people = str(text__people.get(1.0, END))
-        CONTECT_MENU[group_name] = people
+        person = str(text__people.get())
+        CONTECT_MENU[name] = person
         add_window.destroy()
 
     add_window = Tk()
-    add_window.title("create group")
-    text__name = Text(add_window, width=20, height=1)
-    text__people = Text(add_window, width=20, height=30)
+    label_error = Label(add_window)
+    add_window.title("create new phone")
+    text__name = Entry(add_window, width=20)
+    text__people = Entry(add_window, width=20)
     ok_button = Button(add_window, text="OK", command=create_people)
     open_group_massage = Label(add_window, text="please enter  name :", width=25, height=1)
     people = Label(add_window, text="please enter contact know by server:", width=39, height=1)
@@ -236,13 +339,23 @@ def add_people():
 
 def get_name():
     def send_name():
-        msg = get_name_text.get(1.0, END)
-        messages_to_write.append(("", "get_name", "", msg, OutputType.sending))
+        msg = get_name_text.get()
+        for i in msg:
+            if i in BLACK_LIST_SIMBOLD:
+                label_error.configure(text="name contect cant include [,],{,}!")
+                return
+        if msg in CONTECT_MENU.keys():
+            msg = CONTECT_MENU[msg]
+        with massage_list_lock:
+            massage_list_lock.acquire(blocking=False)
+            messages_to_write.append(("", "get_name", "", msg, OutputType.sending))
+            massage_list_lock.release()
         get_name_text.destroy()
 
     get_name_window = Tk()
+    label_error = Label(get_name_window)
     get_name_window.title("get name")
-    get_name_text = Text(get_name_window, width=10, height=1)
+    get_name_text = Entry(get_name_window, width=10)
     cmd_send_button = Button(get_name_window, text="send", command=send_name)
     get_name_text.pack()
     cmd_send_button.pack()
@@ -255,9 +368,27 @@ def main():
     global text_input_massage
     global text_output
     global my_socket
+    global open_group_thred
+    global get_contect_info_thred
+    global get_names_thred
+    global change_name_thred
+    global add_people_thred
+    global send_massage_thred_s
+    global send_massage_thred_se
+    global send_massage_thred_i
+    global send_massage_thred_ie
+    global get_name_thred
+    global text_output_lock
+    global massage_list_lock
+    global label_error
+
+    if text_output_lock.locked():
+        text_output_lock.release()
+    if massage_list_lock.locked():
+        massage_list_lock.release()
     window = Tk()
     window.title("Chat APP")
-    text_input_to = Text(window, width=100, height=1)
+    text_input_to = Entry(window, width=100)
     text_input_massage = Text(window, width=100, height=3)
     text_output = Text(window, width=100, height=20)
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -269,34 +400,42 @@ def main():
     text_output.tag_config(OutputType.receive_e.value, foreground="#f45d07")
     text_output.tag_config(OutputType.system_info.value, foreground="black")
     text_output.tag_config(OutputType.server_ans.value, foreground="#585858")
+    label_error = Label(window)
 
     label_to = Label(window, text="To:", height=1, width=3, compound="left")
     label_msg = Label(window, text="Massage:", height=1, width=8, compound="left")
 
+    client_loop = threading.Thread(target=main1)
     open_group_thred = threading.Thread(target=open_group)
     get_contect_info_thred = threading.Thread(target=get_contect_info)
     get_names_thred = threading.Thread(target=get_names)
     change_name_thred = threading.Thread(target=change_name)
     add_people_thred = threading.Thread(target=add_people)
-    send_massage_thred_s = threading.Thread(target=send_massage, args=(OutputType.sending, False))
-    send_massage_thred_se = threading.Thread(target=send_massage, args=(OutputType.sending_e, False))
-    send_massage_thred_i = threading.Thread(target=send_massage, args=(OutputType.sending, True))
-    send_massage_thred_ie = threading.Thread(target=send_massage, args=(OutputType.sending_e, True))
+
+    send_massage_thred_s = threading.Thread(target=call_send_massage)
+    send_massage_thred_se = threading.Thread(target=call_send_massage_e)
+    send_massage_thred_i = threading.Thread(target=call_send_image)
+    send_massage_thred_ie = threading.Thread(target=call_send_image_e)
+
     get_name_thred = threading.Thread(target=get_name)
 
-    create_group_button = Button(window, text="crate group", command=lambda: open_group_thred.start())
-    my_contest_info_button = Button(window, text="phon book", command=lambda: get_contect_info_thred.start(),
+
+
+    create_group_button = Button(window, text="crate group", command=lambda: open_group_thred.run())
+    my_contest_info_button = Button(window, text="phon book", command=lambda: get_contect_info_thred.run(),
                                     compound="left")
-    get_all_names_button = Button(window, text="names by server", command=lambda: get_names_thred.start(),
+    get_all_names_button = Button(window, text="names by server", command=lambda: get_names_thred.run(),
                                   compound="left")
-    my_name_button = Button(window, text="change my name", command=lambda: change_name_thred.start())
-    add_people_button = Button(window, text="add people", command=lambda: add_people_thred.start())
-    send_msg_button = Button(window, text="send", command=lambda: send_massage_thred_s.start())
-    send_encrypt_msg_button = Button(window, text="send encrypt", command=lambda: send_massage_thred_se.start())
-    send_image_button = Button(window, text="send Image", command=lambda: send_massage_thred_i.start())
+    my_name_button = Button(window, text="change my name", command=lambda: change_name_thred.run())
+    add_people_button = Button(window, text="add people", command=lambda: add_people_thred.run())
+
+    send_msg_button = Button(window, text="send", command=lambda: send_massage_thred_s.run())
+
+    send_encrypt_msg_button = Button(window, text="send encrypt", command=lambda: send_massage_thred_se.run())
+    send_image_button = Button(window, text="send Image", command=lambda: send_massage_thred_i.run())
     send_encrypt_image_button = Button(window, text="send encrypted Image",
-                                       command=lambda: send_massage_thred_ie.start())
-    get_name_button = Button(window, text="get name", command=lambda: get_name_thred.start())
+                                       command=lambda: send_massage_thred_ie.run())
+    get_name_button = Button(window, text="get name", command=lambda: get_name_thred.run())
 
     """
         text_output.grid(row=1)
@@ -324,6 +463,7 @@ def main():
     text_output.pack()
     label_to.pack()
     text_input_to.pack()
+    label_error.pack()
     label_msg.pack()
     text_input_massage.pack()
     send_msg_button.pack()
@@ -331,8 +471,18 @@ def main():
     send_image_button.pack()
     send_encrypt_image_button.pack()
 
-    client_loop = threading.Thread(target=main1, args=(my_socket,))
+    # open_group_thred.daemon = True
+    get_contect_info_thred.daemon = True
+    get_names_thred.daemon = True
+    change_name_thred.daemon = True
+    add_people_thred.daemon = True
+    send_massage_thred_s.daemon = True
+    send_massage_thred_se.daemon = True
+    send_massage_thred_i.daemon = True
+    send_massage_thred_ie.daemon = True
+    get_name_thred.daemon = True
     client_loop.daemon = True
+
     client_loop.start()
     window.mainloop()
 
@@ -387,7 +537,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-
+"""
 def input_function(my_socket, start_input):
     print(start_input)
     window.title("MASSAGE")
@@ -398,3 +548,4 @@ def input_function(my_socket, start_input):
     button = Button(text="send", command=lambda: send_massage(my_socket), compound='bottom')
     button.pack()
     text_input_to.pack()
+"""

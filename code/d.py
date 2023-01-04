@@ -17,74 +17,83 @@ import io
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
-from  PIL import Image
-
+from PIL import Image
 
 import tkinter as tk
 
-d=dict()
-d['r']="asd"
-d['tt']="fdgd"
+c="p"
+def i(a):
+    print(a)
+
+
+t=threading.Thread(target=i,args=c)
+t.daemon=False
+t.run()
+if t.is_alive():
+    t.run()
+else:
+    t.isAlive()
+    t.run()
+
+
+
+
+d = ['k', 'j', 'k', 't']
+print(str(set(d)))
+print(d, set(d))
+
+d = dict()
+d['r'] = "asd"
+d['tt'] = "fdgd"
 for i in d.items():
     print(i)
-
 
 # Create the main window
 window = tk.Tk()
 
-# Define the size of the grid as 3 rows and 3 columns
-for i in range(3):
-    window.rowconfigure(i, minsize=100)
-    window.columnconfigure(i, minsize=100)
 
-# Create a label and place it in the first row and first column of the grid
-label1 = tk.Label(window, text="Label 1")
-label1.grid(row=0, column=0)
+def error():
 
-# Create a second label and place it in the first row and second column of the grid
-label2 = tk.Label(window, text="Label 2")
-label2.grid(row=0, column=1)
+    if  'a' in t.get():
+        b.configure(state=DISABLED)
+        return False
+    b.configure(state=NORMAL)
+    return True
 
-# Create a third label and place it in the second row and first column of the grid
-label3 = tk.Label(window, text="Label 3")
-label3.grid(row=1, column=0)
 
-# Create a fourth label and place it in the second row and second column of the grid
-label4 = tk.Label(window, text="Label 4")
-label4.grid(row=1, column=1)
-
+b = Button(window, text="ldld")
+b.pack()
+t = Entry(window, width=20, validatecommand=error, validate="key")
+t.pack()
 # Run the Tkinter event loop
 window.mainloop()
 
-
-msg="dfsfdsf"
-#msg = "".join([format(n, '08b') for n in msg])
+msg = "dfsfdsf"
+# msg = "".join([format(n, '08b') for n in msg])
 data = b"".join([bytes(chr(int(msg[i:i + 8], 2)), "utf-8") for i in range(0, len(msg), 8)])
 decoded_b64 = base64.b64decode(data)
 data = pickle.loads(decoded_b64)
 
-o=time.localtime()
-u=json.dumps(o)
-u=json.loads(u)
-c=tkinter.filedialog.askopenfilename(title="open image", filetypes=(("Image files", "*.png"),))
-d=Image.open(c,'r')
-k=open(c,'rb')
-k=k.read()
-l=tkinter.filedialog.asksaveasfilename(title="open image", filetypes=(("Image files", "*.png"),))
-j=open(l,'wb')
-d.info["sdsdfsd"]="sdfdsfdssdsdfsdf"
-d.save(l+'.png',"png")
-p=Image.open(l+'.png','r')
-o=pickle.dumps(d)
-o=base64.b64decode(o)
+o = time.localtime()
+u = json.dumps(o)
+u = json.loads(u)
+c = tkinter.filedialog.askopenfilename(title="open image", filetypes=(("Image files", "*.png"),))
+d = Image.open(c, 'r')
+k = open(c, 'rb')
+k = k.read()
+l = tkinter.filedialog.asksaveasfilename(title="open image", filetypes=(("Image files", "*.png"),))
+j = open(l, 'wb')
+d.info["sdsdfsd"] = "sdfdsfdssdsdfsdf"
+d.save(l + '.png', "png")
+p = Image.open(l + '.png', 'r')
+o = pickle.dumps(d)
+o = base64.b64decode(o)
 j.write(o)
-t=open("nnnnn.png",'wb')
+t = open("nnnnn.png", 'wb')
 t.write(k)
 
-
-
 path_image = tkinter.filedialog.askopenfilename(title="open image", filetypes=(("Image files", "*.png"),))
-g="sdfsdf"
+g = "sdfsdf"
 print(g.__class__.__name__)
 f = "True"
 """
@@ -124,39 +133,38 @@ def inp(inpt, f):
         f = "True"
 
 
-def s(b,w):
+def s(b, w):
     filer = str(b.get(1.0, END))
     print(filer)
 
 
-
-
-def u(f,c):
+def u(f, c):
     print(c)
     f = "False"
     w = Tk()
     b = Text(w)
-    #b.configure(height=12,width=20)
-    b.grid(column=1,row=0)
-    l=Label(w,text="aba")
-    l.configure(height=10,width=3)
-    l.grid(column=0,row=0)
-    #l.pack()
-    c=Text(w)
+    # b.configure(height=12,width=20)
+    b.grid(column=1, row=0)
+    l = Label(w, text="aba")
+    l.configure(height=10, width=3)
+    l.grid(column=0, row=0)
+    # l.pack()
+    c = Text(w)
     c.grid(column=1)
-   # c.pack()
+    # c.pack()
     b.insert(END, f)
-    b.insert(END,'\nTo:')
+    b.insert(END, '\nTo:')
     b.insert(END, '\nSubject:')
-    o = Button(text="cmd", command=lambda: s(b,w),compound="top")
+    o = Button(text="cmd", command=lambda: s(b, w), compound="top")
     o.grid(column=2)
 
-   # b.pack()
-    Text(w).insert(END,"blalb")
+    # b.pack()
+    Text(w).insert(END, "blalb")
     w.mainloop()
     f = "True"
 
-u("true","g")
+
+u("true", "g")
 user_input = ""
 x = 0
 """
@@ -167,27 +175,29 @@ b.pack()
 root.mainloop()
 root.destroy()
 """
+
+
 def o(c):
     while c != "":
-        print (c)
+        print(c)
+
 
 try:
-    c="a"
-    p=threading.Thread(target=o(c))
+    c = "a"
+    p = threading.Thread(target=o(c))
     p.start()
     for i in range(10):
-        c+='a'
-    c=""
+        c += 'a'
+    c = ""
 
-
-    c=""
+    c = ""
     while True:
 
         if msvcrt.kbhit() and f == "True":
             while msvcrt.kbhit():
-                c+=msvcrt.getche().decode()
+                c += msvcrt.getche().decode()
 
-            t = threading.Thread(target=u(f,c))
+            t = threading.Thread(target=u(f, c))
             t.start()
         # print(x)
         x += 1

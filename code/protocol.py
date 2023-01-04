@@ -49,11 +49,11 @@ def get_msg(my_socket):
         finally:
             cmd = data.split(" ", 1)
             if len(cmd) == 1:
-                return True, my_socket, cmd
-            data = data.split(']')
-            from_msg = "".join(data[:-1])
+                return True, my_socket, cmd[0]
+            data = cmd[1].split('}',1)
+            to_msg = "".join(data[:-1])
             msg = data[-1]
-            from_msg = json.loads(from_msg)
+            to_msg = json.loads(to_msg)
             try:
                 data = b"".join([bytes(chr(int(msg[i:i + 8], 2)), "utf-8") for i in range(0, len(msg), 8)])
                 decoded_b64 = base64.b64decode(data)
@@ -61,7 +61,7 @@ def get_msg(my_socket):
                 msg = data
             except ValueError:
                 pass
-            return True, from_msg, msg
+            return True, to_msg, msg
 
     else:
         # if client fall by ctrl+c
