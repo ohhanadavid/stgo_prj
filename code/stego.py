@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 import random
+import tkinter.filedialog
 from io import BytesIO
 from PIL import Image
 import time
@@ -141,8 +142,6 @@ def encode_info(t, data, img=""):
         images_in_dir = find_path('images')
         img = PATH + r'\\images\\' + images_in_dir[random.randint(0, len(images_in_dir))]
         print(img)
-    else:
-        img = PATH + r'\\images\\' + img
     image = Image.open(img, 'r')
     image.info['date'] = t
     image.info['image name'] = img.split('\\')[-1]
@@ -184,10 +183,12 @@ def encode_info(t, data, img=""):
             pdf_file = PyPDF2.PdfReader(pdf_file_obj)
             c = 0
             page_obj = pdf_file.pages[c]
-
-    new_img_name = PATH + r"\\images\\ptt.png"
     save_image = encode_enc(image, data, lendata, codex, prime(h), prime(m))
-    save_image.save(new_img_name, str(new_img_name.split(".")[1].upper()))
+    """
+    new_img_name = tkinter.filedialog.asksaveasfilename(title="save image", filetypes=(("Image files", "*.png"),))
+    
+    if new_img_name != "":
+        save_image.save(new_img_name, str(new_img_name.split(".")[1].upper()))"""
     return save_image
 
 
@@ -289,5 +290,5 @@ def main():
 
     print(decode_info(u))
 
-
-main()
+if __name__ == "__main__":
+    main()

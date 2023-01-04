@@ -8,6 +8,7 @@
    EXIT - server should send acknowledge and quit
 """
 import base64
+import json
 import pickle
 import time
 import stego
@@ -20,43 +21,47 @@ LENGTH_FIELD_SIZE_STR_ERROR = "YOU ENTER MORE THEN " + str(10 ** LENGTH_FIELD_SI
 TYPE_LENGTH = 5
 
 
-def create_msg(data, type_msg):
+def create_msg(data):
     """Create a valid protocol message, with length field"""
     if not data.isascii():
         data = "We can only handle what is in the ASCII table "
     if len(data) >= 10 ** LENGTH_FIELD_SIZE:
         return (str.zfill(str(len(LENGTH_FIELD_SIZE_STR_ERROR)),
                           LENGTH_FIELD_SIZE) + LENGTH_FIELD_SIZE_STR_ERROR).encode()
-    if data is str:
-        return (str.zfill(str(len(data)), LENGTH_FIELD_SIZE) + str.zfill(type_msg.__name__,
-                                                                         TYPE_LENGTH) + data).encode()
-    else:
-        return (str.zfill(str(len(data)), LENGTH_FIELD_SIZE) + str.zfill(type_msg.__name__,
-                                                                         TYPE_LENGTH)).encode() + data
+    return (str.zfill(str(len(data)), LENGTH_FIELD_SIZE) + data).encode()
 
 
 def get_msg(my_socket):
     """Extract message from protocol, without the length field
        If length field does not include a number, returns False, "Error" """
     data_length = my_socket.recv(LENGTH_FIELD_SIZE).decode()
-    data_type = my_socket.recv(TYPE_LENGTH).decode()
+    data = ""
     if data_length.isdigit():
         try:
-            if data_type == "str":
-                return True, data_type, my_socket.recv(int(data_length)).decode()
-            else:
-                data = my_socket.recv(int(data_length))
-                decoded_b64 = base64.b64decode(data)
-                data = pickle.loads(decoded_b64)
-                return True, data_type, data
+            data = my_socket.recv(int(data_length)).decode()
 
         except:
             count = 0
             data = ""
             while count < data_length:
                 count += 1048576
-                data += my_socket.recv(1048576)
-
+                data += my_socket.recv(1048576).decode()
+        finally:
+            cmd = data.split(" ", 1)
+            if len(cmd) == 1:
+                return True, my_socket, cmd
+            data = data.split(']')
+            from_msg = "".join(data[:-1])
+            msg = data[-1]
+            from_msg = json.loads(from_msg)
+            try:
+                data = b"".join([bytes(chr(int(msg[i:i + 8], 2)), "utf-8") for i in range(0, len(msg), 8)])
+                decoded_b64 = base64.b64decode(data)
+                data = pickle.loads(decoded_b64)
+                msg = data
+            except ValueError:
+                pass
+            return True, from_msg, msg
 
     else:
         # if client fall by ctrl+c
