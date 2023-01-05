@@ -39,7 +39,6 @@ def get_msg(my_socket):
     if data_length.isdigit():
         try:
             data = my_socket.recv(int(data_length)).decode()
-
         except:
             count = 0
             data = ""
@@ -49,11 +48,11 @@ def get_msg(my_socket):
         finally:
             cmd = data.split(" ", 1)
             if len(cmd) == 1:
-                return True, my_socket, cmd[0]
-            data = cmd[1].split('}',1)
-            to_msg = "".join(data[:-1])
-            msg = data[-1]
-            to_msg = json.loads(to_msg)
+                return True,cmd[0], my_socket, ""
+            data = cmd[1].split('}', 1)
+            to_msg = data[0]
+            msg = data[1]
+            to_msg = set(to_msg)
             try:
                 data = b"".join([bytes(chr(int(msg[i:i + 8], 2)), "utf-8") for i in range(0, len(msg), 8)])
                 decoded_b64 = base64.b64decode(data)
@@ -61,10 +60,10 @@ def get_msg(my_socket):
                 msg = data
             except ValueError:
                 pass
-            return True, to_msg, msg
+            return True, cmd, to_msg, msg
 
     else:
         # if client fall by ctrl+c
         if data_length == "":
-            return False, ""
-        return False, None, "ERROR: This message without length field "
+            return False, None, "", "ERROR: This message without length field "
+        return False, None, None, "ERROR: This message without length field "

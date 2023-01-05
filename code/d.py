@@ -20,12 +20,24 @@ from tkinter import messagebox
 from PIL import Image
 
 import tkinter as tk
+class A:
+    a=""
+    b=0
+    def __init__(self,a,b):
+        self.a=a
+        self.b=b
 
 c="p"
 def i(a):
     print(a)
 
-
+o=dict()
+p=A
+for i in range(6):
+    o[ord(str(i))]=A(str(i),i)
+print(o.items())
+e=list(map(lambda x,y:{x:y.a},o.keys(),o.values()))
+print(e)
 t=threading.Thread(target=i,args=c)
 t.daemon=False
 t.run()
@@ -45,6 +57,8 @@ print(d, set(d))
 d = dict()
 d['r'] = "asd"
 d['tt'] = "fdgd"
+p=str(d)
+print(p)
 for i in d.items():
     print(i)
 

@@ -7,6 +7,15 @@ DICTIONARY_SOCKETS = dict()
 MESSAGES_TO_SEND = []
 
 
+class SocketsInfo:
+    client_socket = socket
+    client_name = ""
+
+    def __init__(self, client_socket, client_name):
+        self.client_socket = client_socket
+        self.client_name = client_name
+
+
 def find_socket(client_socket):
     """
     Finds the specific socket it received in the socket list
@@ -14,8 +23,16 @@ def find_socket(client_socket):
     :return: key for socket
     """
     for i in DICTIONARY_SOCKETS.keys():
-        if DICTIONARY_SOCKETS[i] == client_socket:
+        if DICTIONARY_SOCKETS[i].client_socket == client_socket:
             return i
+    return None
+
+
+def find_name(name):
+    for i in DICTIONARY_SOCKETS.keys():
+        if DICTIONARY_SOCKETS[i].client_name == name:
+            return i
+    return None
 
 
 def get_names(client_socket):
@@ -23,7 +40,8 @@ def get_names(client_socket):
     return al sockets name
     :param client_socket: Which socket to return the answer to
     """
-    MESSAGES_TO_SEND.append((client_socket, create_msg('\n'.join(list(DICTIONARY_SOCKETS.keys())))))
+    MESSAGES_TO_SEND.append((client_socket, create_msg("ans_all server " + str(
+        list(map(lambda key, name: {key: name.client_name}, DICTIONARY_SOCKETS.keys(), DICTIONARY_SOCKETS.values()))))))
 
 
 def closing_client(client_socket):
@@ -33,6 +51,8 @@ def closing_client(client_socket):
     """
     name = find_socket(client_socket)
     # delete socket from list
+    for i in DICTIONARY_SOCKETS.keys():
+        MESSAGES_TO_SEND.append((DICTIONARY_SOCKETS[i], create_msg("ans_delete server "+DICTIONARY_SOCKETS[name].client_name)))
     DICTIONARY_SOCKETS.pop(name)
     print("Connection " + name + " closed")
     client_socket.close()
@@ -48,73 +68,68 @@ def name_setting(client_socket, data):
     # if he got only NAME send is name
     if len(data) == 1:
         for i in DICTIONARY_SOCKETS.keys():
-            if DICTIONARY_SOCKETS[i] == client_socket:
-                MESSAGES_TO_SEND.append((client_socket, create_msg("your name is: " + str(i))))
+            if DICTIONARY_SOCKETS[i].client_socket == client_socket:
+                MESSAGES_TO_SEND.append((client_socket, create_msg("ans_name_ server" + str(i))))
                 return
     else:
         name = data[1]
     if name in DICTIONARY_SOCKETS.keys():
-        MESSAGES_TO_SEND.append((client_socket, create_msg("this name already exists")))
+        MESSAGES_TO_SEND.append(
+            (client_socket, create_msg("ans_error_<name" + name + "> server this name already exists")))
     else:
         # if he wants change his name
-        if client_socket in DICTIONARY_SOCKETS.values():
-            old_name = find_socket(client_socket)
-            MESSAGES_TO_SEND.append((client_socket, create_msg("hello " + name)))
-            DICTIONARY_SOCKETS[name] = client_socket
-            DICTIONARY_SOCKETS.pop(old_name)
-            return
-        DICTIONARY_SOCKETS[name] = client_socket
-        MESSAGES_TO_SEND.append((client_socket, create_msg("hello " + name)))
+        for i in DICTIONARY_SOCKETS.values():
+            if client_socket == i.client_socket:
+                key = find_socket(client_socket)
+                DICTIONARY_SOCKETS[key].client_name = name
+                MESSAGES_TO_SEND.append((client_socket, create_msg("ans_success_<name: " + name + "> server")))
+                return
 
 
-def message(client_socket, data):
+def message(client_socket, msg_to, data):
     """
     send message to auther clients
+    :param msg_to:
     :param client_socket: source
     :param data: destination and message
     """
     # gen msg commend without destination
-    if len(data) == 1:
-        MESSAGES_TO_SEND.append((client_socket, create_msg("who you want tho send message?")))
+    if msg_to == "":
+        MESSAGES_TO_SEND.append((client_socket, create_msg("ans_error_<msg> server who you want tho send message?")))
         return
-    dst = data[1].split(" ", 1)
     # get empty message
-    if len(dst) == 1:
-        msg = '" "'
-    else:
-        msg = dst[1]
-    try:
+    if data == "":
+        data = '" "'
+
         # looking for destination
-        msg = find_socket(client_socket) + " say " + msg
-        MESSAGES_TO_SEND.append((DICTIONARY_SOCKETS[dst[0]], create_msg(msg)))
-    except KeyError:
-        # destination not found
-        MESSAGES_TO_SEND.append((client_socket, create_msg("no client with this name")))
+        msg = "msg" + DICTIONARY_SOCKETS[find_socket(client_socket)].cliet_name + " say \n" + data
+        for i in msg_to:
+            try:
+                MESSAGES_TO_SEND.append((DICTIONARY_SOCKETS[i].client_socket, create_msg(msg)))
+            except KeyError:
+                # destination not found
+                MESSAGES_TO_SEND.append(
+                    (client_socket, create_msg("ans_error_<msg> server no client with " + i + "name")))
 
 
-def get_name(client_socket):
-    pass
+def get_name(client_socket, name):
+    key = find_name(name)
+    if key is not None:
+        MESSAGES_TO_SEND.append((client_socket, create_msg("ans_name_<" + name + "> server " + key)))
 
 
-def check_cmd(data,to_msg, client_socket):
-    """
-    Checking that the commands are recognized
-    :param data:
-    :param client_socket:
-    """
-    # get the cmd
-    cmd = data.split(" ", 1)
-    cmd[0] = cmd[0].lower()
+def check_cmd(cmd, data, to_msg, client_socket):
+    cmd = cmd.lower()
     if cmd[0] == "get_names":
         get_names(client_socket)
     if cmd[0] == "get_name":
-        get_name(client_socket)
+        get_name(client_socket, data)
     elif cmd[0] == "exit":
         closing_client(client_socket)
     elif cmd[0] == "name":
-        name_setting(client_socket, cmd)
+        name_setting(client_socket, data)
     elif cmd[0] == "msg":
-        message(client_socket, cmd)
+        message(client_socket, to_msg, data)
     else:
         MESSAGES_TO_SEND.append((client_socket, create_msg("Invalid command, please enter NAME,MSG,GET_NAMES or EXIT")))
 
@@ -135,19 +150,20 @@ def main():
                     connection, client_address = current_socket.accept()
                     print("New client joined!", client_address)
                     # Saves the client if the port number the server brought to it
-                    DICTIONARY_SOCKETS[str(client_address[1])] = connection
+                    DICTIONARY_SOCKETS[str(client_address[1])] = SocketsInfo(connection, str(client_address[1]))
                 else:
                     flag = bool
                     data = str
-                    to_msg=""
+                    to_msg = ""
+                    cmd = ""
                     try:
-                        flag, to_msg, data = get_msg(current_socket)
+                        flag, cmd, to_msg, data = get_msg(current_socket)
 
                     except ConnectionResetError:
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))
 
                     if flag:
-                        check_cmd(data,to_msg, current_socket)
+                        check_cmd(cmd, data, to_msg, current_socket)
                     else:
                         # if client fall by ctrl+c
                         if data == "":
