@@ -19,6 +19,7 @@ from tkinter import filedialog
 from tkinter import messagebox
 from PIL import Image
 
+
 import tkinter as tk
 class A:
     a=""
@@ -26,6 +27,37 @@ class A:
     def __init__(self,a,b):
         self.a=a
         self.b=b
+
+
+f=threading.Lock()
+d={1:2,2:3,4:5}
+o=json.dumps(d)
+print(o)
+print(json.loads(o))
+p=list(d)
+for i in p:
+    print(i)
+
+i=0
+f.acquire(blocking=False)
+print(f.locked())
+f.release()
+print(f.locked())
+with f:
+    print(f.locked())
+    print(i)
+    i+=1
+print(f.locked())
+
+
+
+
+
+
+
+
+
+
 
 c="p"
 def i(a):

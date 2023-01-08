@@ -19,6 +19,7 @@ LENGTH_FIELD_SIZE = 9
 PORT = 8820
 LENGTH_FIELD_SIZE_STR_ERROR = "YOU ENTER MORE THEN " + str(10 ** LENGTH_FIELD_SIZE) + " CHARACTERS"
 TYPE_LENGTH = 5
+ANS_SERVER = "{'server'}"
 
 
 def create_msg(data):
@@ -46,21 +47,27 @@ def get_msg(my_socket):
                 count += 1048576
                 data += my_socket.recv(1048576).decode()
         finally:
-            cmd = data.split(" ", 1)
-            if len(cmd) == 1:
-                return True,cmd[0], my_socket, ""
-            data = cmd[1].split('}', 1)
-            to_msg = data[0]
-            msg = data[1]
-            to_msg = set(to_msg)
-            try:
-                data = b"".join([bytes(chr(int(msg[i:i + 8], 2)), "utf-8") for i in range(0, len(msg), 8)])
-                decoded_b64 = base64.b64decode(data)
-                data = pickle.loads(decoded_b64)
-                msg = data
-            except ValueError:
-                pass
-            return True, cmd, to_msg, msg
+            cmd_get = data.split(" ", 1)
+            if len(cmd_get) == 1:
+                return True, cmd_get[0], ""
+            else:
+                return True, cmd_get[0], cmd_get[1]
+            """cmd = cmd_get[0]
+            data = cmd_get[1].split('}', 1)
+            if len(data) > 1:
+                to_msg = data[0] + '}'
+                msg = data[1]
+                to_msg = eval(to_msg)
+            else:
+                data = data[0]
+                if data == ANS_SERVER:
+                    to_msg = ANS_SERVER
+                    data = ""
+                else:
+                    to_msg = ""
+                msg = ""
+            
+            return True, cmd, to_msg, msg"""
 
     else:
         # if client fall by ctrl+c
