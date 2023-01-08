@@ -28,7 +28,15 @@ class A:
         self.a=a
         self.b=b
 
+o=dict()
 
+for i in range(6):
+    o[ord(str(i))]=A(str(i),i)
+print(o.items())
+print('\n\r'.join([str(item) for item in o.items()]))
+print("o:",o)
+p = [y.a for y in o.values()]
+print(p)
 f=threading.Lock()
 d={1:2,2:3,4:5}
 o=json.dumps(d)
@@ -63,10 +71,7 @@ c="p"
 def i(a):
     print(a)
 
-o=dict()
-p=A
-for i in range(6):
-    o[ord(str(i))]=A(str(i),i)
+
 print(o.items())
 e=list(map(lambda x,y:{x:y.a},o.keys(),o.values()))
 print(e)

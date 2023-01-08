@@ -41,7 +41,7 @@ def get_names(client_socket):
     :param client_socket: Which socket to return the answer to
     """
     MESSAGES_TO_SEND.append((client_socket, create_msg("ans_all " + json.dumps(
-        dict(zip(lambda key, name: {key: name.client_name}, DICTIONARY_SOCKETS.keys(), DICTIONARY_SOCKETS.values()))))))
+        dict(zip(DICTIONARY_SOCKETS.keys(), [i.client_name for i in DICTIONARY_SOCKETS.values()]))))))
 
 
 def closing_client(client_socket):
@@ -185,7 +185,10 @@ def main():
             for message_to_send in MESSAGES_TO_SEND:
                 current_socket, data = message_to_send
                 if current_socket in wlist:
-                    current_socket.send(data)
+                    try:
+                        current_socket.send(data)
+                    except ConnectionResetError:
+                        closing_client(current_socket)
                 MESSAGES_TO_SEND.remove(message_to_send)
         except IndexError as e:
             print(e)
