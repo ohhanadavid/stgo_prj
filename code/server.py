@@ -7,6 +7,7 @@ DICTIONARY_SOCKETS = dict()
 MESSAGES_TO_SEND = []
 
 
+
 class SocketsInfo:
     client_socket = socket
     client_name = ""
@@ -15,6 +16,8 @@ class SocketsInfo:
         self.client_socket = client_socket
         self.client_name = client_name
 
+    def __str__(self):
+        return self.client_name
 
 def find_socket(client_socket):
     """
@@ -84,7 +87,10 @@ def name_setting(client_socket, data):
                 key = find_socket(client_socket)
                 DICTIONARY_SOCKETS[key].client_name = name
                 MESSAGES_TO_SEND.append((client_socket, create_msg("ans_success_<name:" + name + "> ")))
-                return
+                break
+    for i in DICTIONARY_SOCKETS.keys():
+        print(i+":"+DICTIONARY_SOCKETS[i].client_name)
+
 
 
 def message(client_socket, data):
@@ -105,18 +111,18 @@ def message(client_socket, data):
     msg_to = eval(data[0])
     data = data[1]
     # get empty message
-    if data == "":
+    if data in EMPTY_DATA:
         data = '" "'
 
     # looking for destination
-    msg = "msg " + DICTIONARY_SOCKETS[find_socket(client_socket)].cliet_name + " " + data
+    msg = "msg " + DICTIONARY_SOCKETS[find_socket(client_socket)].client_name + " " + data
     for i in msg_to:
         try:
             MESSAGES_TO_SEND.append((DICTIONARY_SOCKETS[i].client_socket, create_msg(msg)))
         except KeyError:
             # destination not found
             MESSAGES_TO_SEND.append(
-                (client_socket, create_msg("ans_error_<msg>" + " no client with " + i + "name")))
+                (client_socket, create_msg("ans_error_<msg>" + " no client with " + i + " name")))
 
 
 def get_name(client_socket, name):
@@ -171,6 +177,8 @@ def main():
 
                     except ConnectionResetError:
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))
+                    except ConnectionAbortedError:
+                        DICTIONARY_SOCKETS.pop(find_socket(current_socket))
 
                     if flag:
                         check_cmd(cmd, data, current_socket)
@@ -188,7 +196,10 @@ def main():
                     try:
                         current_socket.send(data)
                     except ConnectionResetError:
-                        closing_client(current_socket)
+                        try:
+                            closing_client(current_socket)
+                        except KeyError:
+                            pass
                 MESSAGES_TO_SEND.remove(message_to_send)
         except IndexError as e:
             print(e)

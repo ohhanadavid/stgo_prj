@@ -3,6 +3,7 @@
    Date:06.11.2022
    Possible client commands defined in protocol.py
 """
+import argparse
 import tkinter.scrolledtext
 from enum import Enum
 import json
@@ -38,6 +39,13 @@ class OutputType(Enum):
     error_msg = "error"
 
 
+def ip_from_user():
+    parser = argparse.ArgumentParser(usage="scurety chat app", description="Arpspoof Detector")
+    parser.add_argument("-ip", "--IP", type=str, default='127.0.0.1', help="ip you want to connect")
+    args = parser.parse_args()
+    return args.ip
+
+
 msg_input = ""
 messages_to_write = []
 CONTECT_MENU = dict()
@@ -46,6 +54,7 @@ TYPE_SERVER_RESPONSE = ""
 BLACK_LIST_SIMBOLD = "[]{}"
 text_output_lock = threading.Lock()
 massage_list_lock = threading.Lock()
+CONNECT_TRYNIG = 10
 
 
 def find_name(name):
@@ -55,28 +64,73 @@ def find_name(name):
     return None
 
 
-def call_send_massage():
-    send_massage(OutputType.sending, False)
+def call_send_massage(s):
+    if not s.is_alive():
+        try:
+
+            s.start()
+        except RuntimeError as e:
+            try:
+
+                s.run()
+            except AttributeError as e:
+
+                s = threading.Thread(target=send_massage, args=(OutputType.sending, False))
+                s.run()
 
 
-def call_send_massage_e():
-    send_massage(OutputType.sending_e, False)
+def call_send_massage_e(se):
+    if not se.is_alive():
+        try:
+            se.start()
+        except RuntimeError as e:
+            try:
+
+                se.run()
+            except AttributeError as e:
+
+                se = threading.Thread(target=send_massage, args=(OutputType.sending_e, False))
+                se.run()
 
 
-def call_send_image():
-    send_massage(OutputType.sending, True)
+def call_send_image(i):
+    if not i.is_alive():
+        try:
+
+            i.start()
+        except RuntimeError as e:
+            try:
+
+                i.run()
+            except AttributeError as e:
+
+                i = threading.Thread(target=send_massage, args=(OutputType.sending, True))
+                i.run()
 
 
-def call_send_image_e():
-    send_massage(OutputType.sending_e, True)
+def call_send_image_e(ie):
+    if not ie.is_alive():
+        try:
+
+            ie.start()
+        except RuntimeError as e:
+            try:
+
+                ie.run()
+            except AttributeError as e:
+
+                ie = threading.Thread(target=send_massage, args=(OutputType.sending_e, True))
+                ie.run()
 
 
 def send_massage(encode, image):
     to_input = str(text_input_to.get())
+    if to_input in EMPTY_DATA:
+        label_error.configure(text="must by address!")
+        return
     for i in to_input:
         if i in BLACK_LIST_SIMBOLD:
             label_error.configure(text="name contect cant include [,],{,}!")
-
             return
     label_error.configure(text="")
     if ',' in to_input:
@@ -86,6 +140,15 @@ def send_massage(encode, image):
     msg = ""
     if not image:
         msg = str(text_input_massage.get(1.0, END))
+        count = 0
+        for i in msg:
+            if i in EMPTY_DATA:
+                count += 1
+            else:
+                break
+        msg = msg[count:]
+        if msg in EMPTY_DATA:
+            return
     elif image:
         img = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(("Image files", "*.png"),))
         msg = Image.open(img, 'r')
@@ -148,16 +211,13 @@ def open_group():
 
 def get_contect_info():
     for item in CONTECT_MENU.items():
-        if item[1] is not list:
+        if item[1].__class__ is not set:
             output_insert(END, '\n\r' + item[0] + ': ' + item[1] + ',', OutputType.system_info.value)
 
         else:
             output_insert(END, '\n\r' + item[0] + ': ', OutputType.system_info.value)
 
-            c = ""
-            for k in range(len(item[0] + 2)):
-                c += " "
-            output_insert(END, (',\n' + c).join(item[1]), OutputType.system_info.value)
+            output_insert(END, '\n'.join(item[1]), OutputType.system_info.value)
 
 
 def get_names():
@@ -263,7 +323,7 @@ def ans(cmd, data):
         output_insert(END, output, OutputType.server_ans.value)
         for i in data:
             if i not in CONTECT_MENU.values():
-                CONTECT_MENU[i] = i[1]
+                CONTECT_MENU[i] = i
     elif "return_name" in cmd:
         cmd = cmd.split('<', 1)[1].split('>', 1)[0]
         CONTECT_MENU[cmd] = data
@@ -306,25 +366,109 @@ def get_name():
     get_name_window.mainloop()
 
 
+def call_open_group(open_group_thred):
+    if not open_group_thred.is_alive():
+        try:
+            print("a")
+            open_group_thred.start()
+        except RuntimeError as e:
+            try:
+                open_group_thred.run()
+            except AttributeError as e:
+
+                open_group_thred = threading.Thread(target=open_group)
+                open_group_thred.run()
+
+
+def call_get_contect_info(get_contect_info_thred):
+    if not get_contect_info_thred.is_alive():
+        try:
+
+            get_contect_info_thred.start()
+        except RuntimeError as e:
+            try:
+
+                get_contect_info_thred.run()
+            except AttributeError as e:
+
+                get_contect_info_thred = threading.Thread(target=get_contect_info())
+                get_contect_info_thred.run()
+
+
+def call_get_names(get_names_thred):
+    if not get_names_thred.is_alive():
+        try:
+
+            get_names_thred.start()
+        except RuntimeError as e:
+            try:
+
+                get_names_thred.run()
+            except AttributeError as e:
+
+                get_names_thred = threading.Thread(target=get_names())
+                get_names_thred.run()
+
+
+def call_change_name(change_name_thred):
+    if not change_name_thred.is_alive():
+        try:
+
+            change_name_thred.start()
+        except RuntimeError as e:
+            try:
+
+                change_name_thred.run()
+            except AttributeError as e:
+
+                change_name_thred = threading.Thread(target=change_name())
+                change_name_thred.run()
+
+
+def call_add_people(add_people_thred):
+    if not add_people_thred.is_alive():
+        try:
+
+            add_people_thred.start()
+        except RuntimeError as e:
+            try:
+
+                add_people_thred.run()
+            except AttributeError as e:
+
+                add_people_thred = threading.Thread(target=add_people())
+                add_people_thred.run()
+
+
+def call_get_name(get_name_thred):
+    if not get_name_thred.is_alive():
+        try:
+
+            get_name_thred.start()
+        except RuntimeError as e:
+            try:
+
+                get_name_thred.run()
+            except AttributeError as e:
+
+                get_name_thred = threading.Thread(target=get_name())
+                get_name_thred.run()
+
+
 def main():
     global window
     global text_input_to
     global text_input_massage
     global text_output
     global my_socket
-    global open_group_thred
-    global get_contect_info_thred
-    global get_names_thred
-    global change_name_thred
-    global add_people_thred
-    global send_massage_thred_s
-    global send_massage_thred_se
-    global send_massage_thred_i
-    global send_massage_thred_ie
-    global get_name_thred
+
     global text_output_lock
     global massage_list_lock
     global label_error
+
+    ip = ip_from_user()
+    my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # my_socket.connect((ip, PORT))
 
     if text_output_lock.locked():
         text_output_lock.release()
@@ -336,8 +480,7 @@ def main():
     text_input_to = Entry(window, width=100)
     text_input_massage = Text(window, width=100, height=3)
     text_output = tkinter.scrolledtext.ScrolledText(window, width=100, height=20)
-    my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # my_socket.connect(("127.0.0.1", PORT))
+
     text_output.config(state=DISABLED)
     text_output.tag_config(OutputType.receive.value, foreground="#ff6800")
     text_output.tag_config(OutputType.sending.value, foreground="green")
@@ -352,44 +495,42 @@ def main():
     label_msg = Label(window, text="Massage:", height=1, width=8, compound="left")
 
     client_loop = threading.Thread(target=main1)
+
     open_group_thred = threading.Thread(target=open_group)
     get_contect_info_thred = threading.Thread(target=get_contect_info)
     get_names_thred = threading.Thread(target=get_names)
     change_name_thred = threading.Thread(target=change_name)
     add_people_thred = threading.Thread(target=add_people)
 
-    send_massage_thred_s = threading.Thread(target=call_send_massage)
-    send_massage_thred_se = threading.Thread(target=call_send_massage_e)
-    send_massage_thred_i = threading.Thread(target=call_send_image)
-    send_massage_thred_ie = threading.Thread(target=call_send_image_e)
+    send_massage_thred_s = threading.Thread(target=send_massage, args=(OutputType.sending, False))
+    send_massage_thred_se = threading.Thread(target=send_massage, args=(OutputType.sending_e, False))
+    send_massage_thred_i = threading.Thread(target=send_massage, args=(OutputType.sending, True))
+    send_massage_thred_ie = threading.Thread(target=send_massage, args=(OutputType.sending_e, True))
 
     get_name_thred = threading.Thread(target=get_name)
 
-    create_group_button = Button(window, text="crate group", command=lambda: open_group())
-    my_contest_info_button = Button(window, text="phon book", command=lambda: get_contect_info())
-    get_all_names_button = Button(window, text="names by server", command=lambda: get_names())
-    my_name_button = Button(window, text="change my name", command=lambda: change_name())
-    add_people_button = Button(window, text="add people", command=lambda: add_people())
+    create_group_button = Button(window, text="crate group", command=lambda: call_open_group(open_group_thred))
+    my_contest_info_button = Button(window, text="phon book",
+                                    command=lambda: call_get_contect_info(get_contect_info_thred))
+    get_all_names_button = Button(window, text="names by server", command=lambda: call_get_names(get_names_thred))
+    my_name_button = Button(window, text="change my name", command=lambda: call_change_name(change_name_thred))
+    add_people_button = Button(window, text="add people", command=lambda: call_add_people(add_people_thred))
 
-    send_msg_button = Button(window, text="send", command=lambda: call_send_massage())
+    send_msg_button = Button(window, text="send", command=lambda: call_send_massage(send_massage_thred_s))
 
-    send_encrypt_msg_button = Button(window, text="send encrypt", command=lambda: call_send_massage_e())
-    send_image_button = Button(window, text="send Image", command=lambda: call_send_image())
+    send_encrypt_msg_button = Button(window, text="send encrypt",
+                                     command=lambda: call_send_massage_e(send_massage_thred_se))
+    send_image_button = Button(window, text="send Image", command=lambda: call_send_image(send_massage_thred_i))
     send_encrypt_image_button = Button(window, text="send encrypted Image",
-                                       command=lambda: call_send_image_e())
-    get_name_button = Button(window, text="get name", command=lambda: get_name())
+                                       command=lambda: call_send_image_e(send_massage_thred_ie))
+    get_name_button = Button(window, text="get name", command=lambda: call_get_name(get_name_thred))
 
-    # text_output_scroller = Scrollbar(window, orient="vertical", command=text_output.yview)
-    # text_output_scroller.set( 0,20)
-    # text_output_scroller["height"]=20
-    # text_output.configure(yscrollcommand=text_output_scroller.set)
     create_group_button.pack()
     add_people_button.pack()
     my_contest_info_button.pack()
     get_all_names_button.pack()
     get_name_button.pack()
     my_name_button.pack()
-    # text_output_scroller.pack(side="right", fill=Y)
     text_output.pack()
 
     label_to.pack()
@@ -424,23 +565,24 @@ def output_insert(start, data, color):
         if data.__class__ is str:
             # text_output_lock.acquire(blocking=False)
 
-            text_output.insert(start, data, color)
+            text_output.insert(start, data + '\n', color)
 
             # text_output_lock.release()
         elif data.__class__ is PhotoImage:
-            text_output.image_create(END, data)
+            text_output.image_create(start, data)
+            text_output.insert(END, '\n')
         text_output.config(state=DISABLED)
 
 
 def main1():
-    co = 0
+    """co = 0
     while True:
         for i in range(6):
             output_insert(END, str(co) + '\n', "block")
             co += 1
         time.sleep(2)
         text_output.config(state=NORMAL)
-        text_output.delete(1.0, END)
+        text_output.delete(1.0, END)"""
     while True:
         try:
             rlist, wlist, xlist = select.select([my_socket], [my_socket], [])
@@ -455,9 +597,14 @@ def main1():
                         my_socket.send(create_msg("There is no length field!"))
                         my_socket.recv(1024)
                     except ConnectionAbortedError:
-                        if text_output_lock.locked():
-                            text_output.config(state=DISABLED)
-                            text_output_lock.release()
+                        for i in range(CONNECT_TRYNIG):
+                            try:
+                                my_socket.connect(("127.0.0.1", PORT))
+                                break
+                            except ConnectionResetError:
+                                continue
+                        output_insert(END, "Closing", OutputType.system_info.value)
+                        my_socket.close()
                         return
 
             for message in messages_to_write:
@@ -465,9 +612,9 @@ def main1():
                 if my_socket in wlist:
                     my_socket.send(create_msg(cmd_to_send + send_to + data))
                     if encrypt is OutputType.sending:
-                        output_insert(END, '\n\r' + to_input + '\n\r' + data, OutputType.sending.value)
+                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + data, OutputType.sending.value)
                     elif encrypt is OutputType.sending_e:
-                        output_insert(END, '\n\r' + to_input + '\n\r' + "** " + data + " **",
+                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " + data + " **",
                                       OutputType.sending_e.value)
 
                     with massage_list_lock:
@@ -475,13 +622,24 @@ def main1():
                         messages_to_write.remove(message)
                         # massage_list_lock.release()
                 if not window.winfo_exists():
+                    output_insert(END, "Closing", OutputType.system_info.value)
                     print("Closing\n")
                     my_socket.close()
                     return
         except KeyboardInterrupt:
+            output_insert(END, "Closing", OutputType.system_info.value)
             print("Closing\n")
             my_socket.close()
             return
+        except ConnectionResetError:
+            for i in range(CONNECT_TRYNIG):
+                try:
+                    my_socket.connect(("127.0.0.1", PORT))
+                    break
+                except ConnectionResetError:
+                    continue
+            output_insert(END, "Closing", OutputType.system_info.value)
+            my_socket.close()
 
 
 if __name__ == "__main__":

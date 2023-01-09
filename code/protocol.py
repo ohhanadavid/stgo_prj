@@ -20,7 +20,7 @@ PORT = 8820
 LENGTH_FIELD_SIZE_STR_ERROR = "YOU ENTER MORE THEN " + str(10 ** LENGTH_FIELD_SIZE) + " CHARACTERS"
 TYPE_LENGTH = 5
 ANS_SERVER = "{'server'}"
-
+EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a']
 
 def create_msg(data):
     """Create a valid protocol message, with length field"""
@@ -72,5 +72,5 @@ def get_msg(my_socket):
     else:
         # if client fall by ctrl+c
         if data_length == "":
-            return False, None, "", "ERROR: This message without length field "
-        return False, None, None, "ERROR: This message without length field "
+            return False, None,  "ERROR: This message without length field "
+        return False, None,  "ERROR: This message without length field "
