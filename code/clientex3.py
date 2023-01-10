@@ -49,6 +49,7 @@ def ip_from_user():
     return args.ip
 
 
+my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 msg_input = ""
 messages_to_write = []
 HISTORY = dict()
@@ -70,63 +71,34 @@ def find_name(name):
     return None
 
 
-def call_send_massage(s):
-    if not s.is_alive():
-        try:
+def get_name():
+    def send_name():
+        msg = get_name_text.get()
+        for i in msg:
+            if i in BLACK_LIST_SIMBOLD:
+                label_error.configure(text="name contect cant include [,],{,}!")
+                return
+        if msg in CONTECT_MENU.keys():
+            msg = CONTECT_MENU[msg]
+        with massage_list_lock:
+            # massage_list_lock.acquire(blocking=False)
+            msg = "get_name " + msg
+            transaction_id = time.localtime()
+            transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
+                transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
+            SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), msg]
+            messages_to_write.append(("", transaction_id + msg, OutputType.sending, ""))
+            # massage_list_lock.release()
+        get_name_text.destroy()
 
-            s.start()
-        except RuntimeError as e:
-            try:
-
-                s.run()
-            except AttributeError as e:
-
-                s = threading.Thread(target=send_massage, args=(OutputType.sending, False))
-                s.run()
-
-
-def call_send_massage_e(se):
-    if not se.is_alive():
-        try:
-            se.start()
-        except RuntimeError as e:
-            try:
-
-                se.run()
-            except AttributeError as e:
-
-                se = threading.Thread(target=send_massage, args=(OutputType.sending_e, False))
-                se.run()
-
-
-def call_send_image(i):
-    if not i.is_alive():
-        try:
-
-            i.start()
-        except RuntimeError as e:
-            try:
-
-                i.run()
-            except AttributeError as e:
-
-                i = threading.Thread(target=send_massage, args=(OutputType.sending, True))
-                i.run()
-
-
-def call_send_image_e(ie):
-    if not ie.is_alive():
-        try:
-
-            ie.start()
-        except RuntimeError as e:
-            try:
-
-                ie.run()
-            except AttributeError as e:
-
-                ie = threading.Thread(target=send_massage, args=(OutputType.sending_e, True))
-                ie.run()
+    get_name_window = Tk()
+    label_error = Label(get_name_window)
+    get_name_window.title("get name")
+    get_name_text = Entry(get_name_window, width=20)
+    cmd_send_button = Button(get_name_window, text="send", command=send_name)
+    get_name_text.pack()
+    cmd_send_button.pack()
+    get_name_window.mainloop()
 
 
 def send_massage(encode, image):
@@ -187,34 +159,81 @@ def send_massage(encode, image):
             send_to.add(CONTECT_MENU[i])
         send_to.add(i)
     msg = " " + msg
-    transaction_id = time.localtime()
-    transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-        transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
-    print("num transaction:", str(math.ceil(len(msg) / 1048576)).zfill(3))
+    # transaction_id = time.localtime()
+    # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
+    #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
+    # print("num transaction:", str(math.ceil(len(msg) / 1048576)).zfill(3))
 
     list_msg = []
     count_msg = 1
     msg = "msg " + str(send_to) + type_msg + " " + msg
-    for i in range(0, len(msg), 1048576):
-        if i + 1048576 > len(msg):
-            list_msg.append(transaction_id + str(count_msg) + " " + msg[i:])
-        else:
-            list_msg.append(transaction_id + str(count_msg) + " " + msg[i:i + 1048576])
-            count_msg += 1
-    print("len list", len(list_msg))
-    with massage_list_lock:
-        SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), ""]
-        for i in list_msg:
+    send_msg = (to_input, msg, encode, msg_e)
+    # for i in range(0, len(msg), 1048576):
+    #    if i + 1048576 > len(msg):
+    #        list_msg.append(transaction_id + str(count_msg) + " " + msg[i:])
+    #    else:
+    #        list_msg.append(transaction_id + str(count_msg) + " " + msg[i:i + 1048576])
+    #        count_msg += 1
+    # print("len list", len(list_msg))
+    # with massage_list_lock:
+    #    SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), ""]
+    #     for i in list_msg:
+    #        send_msg = (to_input, i, encode, msg_e)
 
-            send_msg = (to_input, i, encode, msg_e)
-
-            SENDIN_DICT[transaction_id][1] += i.split(" ", 2)[2]
-                # massage_list_lock.acquire(blocking=False)
-            messages_to_write.append(send_msg)
-                # massage_list_lock.release()
+    #        SENDIN_DICT[transaction_id][1] += i.split(" ", 2)[2]
+    # massage_list_lock.acquire(blocking=False)
+    messages_to_write.append(send_msg)
+    # massage_list_lock.release()
     text_input_to.delete(0, END)
     text_input_massage.delete(1.0, END)
     return
+
+
+def get_names():
+    with massage_list_lock:
+        msg = "get_names"
+        messages_to_write.append(("", msg, OutputType.sending, ""))
+        # massage_list_lock.acquire(blocking=False)
+        # transaction_id = time.localtime()
+        # = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
+        #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
+        # SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), msg]
+        # messages_to_write.append(("", transaction_id + str(1) + " " + msg, OutputType.sending, ""))
+        # massage_list_lock.release()
+
+
+def change_name():
+    def change_name_action():
+        new_name = str(text_new_name.get())
+        for i in new_name:
+            if i in BLACK_LIST_SIMBOLD:
+                label_error.configure(text="name contect cant include [,],{,}!")
+                return
+        new_name = "name " + new_name
+        send_msg = ("", new_name, OutputType.sending, "")
+        # transaction_id = time.localtime()
+        # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
+        #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(new_name) / 1048576)).zfill(3) + " "
+        # send_msg = ("", transaction_id + str(1) + " " + new_name, OutputType.sending, "")
+        with massage_list_lock:
+            # massage_list_lock.acquire(blocking=False)
+            #    SENDIN_DICT[transaction_id] = [math.ceil(len(new_name) / 1048576), new_name]
+            messages_to_write.append(send_msg)
+            # massage_list_lock.release()
+        new_name_win.destroy()
+
+    new_name_win = Tk()
+    label_error = Label(new_name_win)
+    new_name_win.title("create name")
+    text_new_name = Entry(new_name_win, width=20)
+    ok_button = Button(new_name_win, text="OK", command=change_name_action)
+    new_name_massage = Label(new_name_win, text="please enter new  name :", width=25, height=1)
+    new_name_massage.pack()
+    text_new_name.pack()
+    label_error.pack()
+
+    ok_button.pack()
+    new_name_win.mainloop()
 
 
 def open_group():
@@ -258,51 +277,6 @@ def get_contect_info():
             output_insert(END, '\n\r' + item[0] + ': ', OutputType.system_info.value)
 
             output_insert(END, '\n'.join(item[1]), OutputType.system_info.value)
-
-
-def get_names():
-    with massage_list_lock:
-        msg = "get_names"
-        # massage_list_lock.acquire(blocking=False)
-        transaction_id = time.localtime()
-        transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-            transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
-        SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), msg]
-        messages_to_write.append(("", transaction_id + str(1) + " " + msg, OutputType.sending, ""))
-        # massage_list_lock.release()
-
-
-def change_name():
-    def change_name_action():
-        new_name = str(text_new_name.get())
-        for i in new_name:
-            if i in BLACK_LIST_SIMBOLD:
-                label_error.configure(text="name contect cant include [,],{,}!")
-                return
-        new_name = "name " + new_name
-        transaction_id = time.localtime()
-        transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-            transaction_id.tm_sec.real) + "_" + str(math.ceil(len(new_name) / 1048576)).zfill(3) + " "
-        send_msg = ("", transaction_id + str(1) + " " + new_name, OutputType.sending, "")
-        with massage_list_lock:
-            # massage_list_lock.acquire(blocking=False)
-            SENDIN_DICT[transaction_id] = [math.ceil(len(new_name) / 1048576), new_name]
-            messages_to_write.append(send_msg)
-            # massage_list_lock.release()
-        new_name_win.destroy()
-
-    new_name_win = Tk()
-    label_error = Label(new_name_win)
-    new_name_win.title("create name")
-    text_new_name = Entry(new_name_win, width=20)
-    ok_button = Button(new_name_win, text="OK", command=change_name_action)
-    new_name_massage = Label(new_name_win, text="please enter new  name :", width=25, height=1)
-    new_name_massage.pack()
-    text_new_name.pack()
-    label_error.pack()
-
-    ok_button.pack()
-    new_name_win.mainloop()
 
 
 def add_people():
@@ -400,123 +374,243 @@ def ans(cmd, data):
         return
 
 
-def get_name():
-    def send_name():
-        msg = get_name_text.get()
-        for i in msg:
-            if i in BLACK_LIST_SIMBOLD:
-                label_error.configure(text="name contect cant include [,],{,}!")
-                return
-        if msg in CONTECT_MENU.keys():
-            msg = CONTECT_MENU[msg]
-        with massage_list_lock:
-            # massage_list_lock.acquire(blocking=False)
-            msg = "get_name " + msg
-            transaction_id = time.localtime()
-            transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-                transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
-            SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), msg]
-            messages_to_write.append(("", transaction_id + msg, OutputType.sending, ""))
-            # massage_list_lock.release()
-        get_name_text.destroy()
+def output_insert(start, data, color):
+    global INDEX
+    with text_output_lock:
+        text_output.config(state=NORMAL)
+        if data.__class__ is str:
+            HISTORY[INDEX] = data
+            type_msg = data.split(" ", 1)
+            if color == OutputType.sending.value or color == OutputType.sending_e.value:
+                address = type_msg[0].split("[", 1)
+                if len(address) == 2:
+                    address = address[1].split("]", 1)[0]
+                    text_output.insert(start, address + '\n', color)
+            if len(type_msg) == 1:
+                type_msg = ""
+            else:
+                data = type_msg[1]
+                type_msg = type_msg[0]
 
-    get_name_window = Tk()
-    label_error = Label(get_name_window)
-    get_name_window.title("get name")
-    get_name_text = Entry(get_name_window, width=20)
-    cmd_send_button = Button(get_name_window, text="send", command=send_name)
-    get_name_text.pack()
-    cmd_send_button.pack()
-    get_name_window.mainloop()
+            # text_output_lock.acquire(blocking=False)
+            if "Image" in type_msg:
+                try:
+
+                    insert_image(data, start)
+                except ValueError:
+                    text_output.insert(start, "we cant uplode this file" + '\n', color)
+            else:
+                HISTORY[INDEX] = data + '\n'
+                text_output.insert(start, HISTORY[INDEX], color)
+
+            # text_output_lock.release()
+        elif data.__class__ is PhotoImage:
+
+            insert_image(data, start)
+        INDEX += 1
+        text_output.config(state=DISABLED)
 
 
-def call_open_group(open_group_thred):
-    if not open_group_thred.is_alive():
+def insert_image(data, start):
+    new_size = 100
+    data = data.split(" ", 1)[1]
+    data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
+    decoded_b64 = base64.b64decode(data)
+    data = pickle.loads(decoded_b64)
+    data = data.resize((int(new_size * (data.size[0] / data.size[1])), int(new_size / (data.size[0] / data.size[1]))))
+    HISTORY[INDEX] = ImageTk.PhotoImage(data)
+    text_output.image_create(start, image=HISTORY[INDEX])
+    text_output.insert(END, '\n')
+
+
+def recv_socket():
+    while True:
         try:
-            print("a")
-            open_group_thred.start()
-        except RuntimeError as e:
-            try:
-                open_group_thred.run()
-            except AttributeError as e:
+            my_socket.setblocking(False)
+            rlist, wlist, xlist = select.select([my_socket], [], [])
+            my_socket.setblocking(True)
+            if my_socket in rlist:
+                include_length_field, cmd, data = get_msg(my_socket)
+                if include_length_field:
+                    ans(cmd, data)
 
-                open_group_thred = threading.Thread(target=open_group)
-                open_group_thred.run()
+                else:
+                    try:
 
-
-def call_get_contect_info(get_contect_info_thred):
-    if not get_contect_info_thred.is_alive():
-        try:
-
-            get_contect_info_thred.start()
-        except RuntimeError as e:
-            try:
-
-                get_contect_info_thred.run()
-            except AttributeError as e:
-
-                get_contect_info_thred = threading.Thread(target=get_contect_info())
-                get_contect_info_thred.run()
-
-
-def call_get_names(get_names_thred):
-    if not get_names_thred.is_alive():
-        try:
-
-            get_names_thred.start()
-        except RuntimeError as e:
-            try:
-
-                get_names_thred.run()
-            except AttributeError as e:
-
-                get_names_thred = threading.Thread(target=get_names())
-                get_names_thred.run()
-
-
-def call_change_name(change_name_thred):
-    if not change_name_thred.is_alive():
-        try:
-
-            change_name_thred.start()
-        except RuntimeError as e:
-            try:
-
-                change_name_thred.run()
-            except AttributeError as e:
-
-                change_name_thred = threading.Thread(target=change_name())
-                change_name_thred.run()
+                        my_socket.send(create_msg("There is no length field!"))
+                        my_socket.recv(1024)
+                    except ConnectionAbortedError:
+                        for i in range(CONNECT_TRYNIG):
+                            try:
+                                my_socket.connect(("127.0.0.1", PORT))
+                                break
+                            except ConnectionResetError:
+                                continue
+                        output_insert(END, "Closing", OutputType.system_info.value)
+                        my_socket.close()
+                        return
+        except KeyboardInterrupt:
+            output_insert(END, "Closing", OutputType.system_info.value)
+            print("Closing\n")
+            my_socket.close()
+            return
+        except ConnectionResetError:
+            for i in range(CONNECT_TRYNIG):
+                try:
+                    my_socket.connect(("127.0.0.1", PORT))
+                    break
+                except ConnectionResetError:
+                    continue
+                except OSError as er:
+                    if er == "OSError: [WinError 10056] A connect request was made on an already connected socket":
+                        pass
+            output_insert(END, "Closing", OutputType.system_info.value)
+            my_socket.close()
 
 
-def call_add_people(add_people_thred):
-    if not add_people_thred.is_alive():
-        try:
-
-            add_people_thred.start()
-        except RuntimeError as e:
-            try:
-
-                add_people_thred.run()
-            except AttributeError as e:
-
-                add_people_thred = threading.Thread(target=add_people())
-                add_people_thred.run()
-
-
-def call_get_name(get_name_thred):
-    if not get_name_thred.is_alive():
+def send_socket():
+    while True:
         try:
 
-            get_name_thred.start()
-        except RuntimeError as e:
+            rlist, wlist, xlist = select.select([my_socket], [my_socket], [])
+            for message in messages_to_write:
+                to_input, data, encrypt, msg_e = message
+                if my_socket in wlist:
+                    my_socket.send(create_msg(data))
+                    if encrypt is OutputType.sending:
+                        # out = data.split(" ", 2)
+                        # if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:
+                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + data,
+                                      OutputType.sending.value)
+                    elif encrypt is OutputType.sending_e:
+                        # out = data.split(" ", 2)
+                        # if int(out[1]) == SENDIN_DICT[out[0]][0]:
+                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " + data + " **",
+                                      OutputType.sending_e.value)
+
+                    with massage_list_lock:
+                        messages_to_write.remove(message)
+
+                        # massage_list_lock.release()
+                if not window.winfo_exists():
+                    output_insert(END, "Closing", OutputType.system_info.value)
+                    print("Closing\n")
+                    my_socket.close()
+                    return
+        except KeyboardInterrupt:
+            output_insert(END, "Closing", OutputType.system_info.value)
+            print("Closing\n")
+            my_socket.close()
+            return
+        except ConnectionResetError:
+            for i in range(CONNECT_TRYNIG):
+                try:
+                    my_socket.connect(("127.0.0.1", PORT))
+                    break
+                except ConnectionResetError:
+                    continue
+                except OSError as er:
+                    if er == "OSError: [WinError 10056] A connect request was made on an already connected socket":
+                        pass
+            output_insert(END, "Closing", OutputType.system_info.value)
+            my_socket.close()
+
+
+def main1():
+    while True:
+        try:
+            rlist, wlist, xlist = select.select([my_socket], [my_socket], [])
+
+            if my_socket in rlist:
+                include_length_field, cmd, data = get_msg(my_socket)
+                if include_length_field:
+                    ans(cmd, data)
+
+                else:
+                    try:
+                        my_socket.send(create_msg("There is no length field!"))
+                        my_socket.recv(1024)
+                    except ConnectionAbortedError:
+                        for i in range(CONNECT_TRYNIG):
+                            try:
+                                my_socket.connect(("127.0.0.1", PORT))
+                                break
+                            except ConnectionResetError:
+                                continue
+                        output_insert(END, "Closing", OutputType.system_info.value)
+                        my_socket.close()
+                        return
+
+            for message in messages_to_write:
+                to_input, data, encrypt, msg_e = message
+                if my_socket in wlist:
+                    my_socket.send(create_msg(data))
+                    if encrypt is OutputType.sending:
+                        out = data.split(" ", 2)
+                        #if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:
+                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + data,
+                                          OutputType.sending.value)
+                    elif encrypt is OutputType.sending_e:
+                        #out = data.split(" ", 2)
+                        #if int(out[1]) == SENDIN_DICT[out[0]][0]:
+                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " +data
+                                          + " **", OutputType.sending_e.value)
+
+                    with massage_list_lock:
+                        messages_to_write.remove(message)
+
+                        # massage_list_lock.release()
+                if not window.winfo_exists():
+                    output_insert(END, "Closing", OutputType.system_info.value)
+                    print("Closing\n")
+                    my_socket.close()
+                    return
+        except KeyboardInterrupt:
+            output_insert(END, "Closing", OutputType.system_info.value)
+            print("Closing\n")
+            my_socket.close()
+            return
+        except ConnectionResetError:
+            for i in range(CONNECT_TRYNIG):
+                try:
+                    my_socket.connect(("127.0.0.1", PORT))
+                    break
+                except ConnectionResetError:
+                    continue
+                except OSError as er:
+                    if er == "OSError: [WinError 10056] A connect request was made on an already connected socket":
+                        pass
+                    output_insert(END, "Closing", OutputType.system_info.value)
+                    my_socket.close()
+
+    recv_thread = threading.Thread(target=recv_socket)
+    send_thread = threading.Thread(target=send_socket)
+    while True:
+        try:
+            if not recv_thread.is_alive():
+                recv_thread.start()
+        except AssertionError as e:
             try:
 
-                get_name_thred.run()
+                recv_thread.run()
             except AttributeError as e:
 
-                get_name_thred = threading.Thread(target=get_name())
-                get_name_thred.run()
+                recv_thread = threading.Thread(target=recv_socket)
+                recv_thread.run()
+        try:
+            if not send_thread.is_alive():
+                send_thread.start()
+        except AssertionError as e:
+            try:
+                send_thread.run()
+            except AttributeError as e:
+
+                send_thread = threading.Thread(target=send_socket)
+                send_thread.run()
+
+        except IndexError as e:
+            print(e)
+            pass
 
 
 def main():
@@ -531,7 +625,6 @@ def main():
     global label_error
 
     ip = ip_from_user()
-    my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     my_socket.connect((ip, PORT))
 
@@ -623,130 +716,152 @@ def main():
     window.mainloop()
 
 
-def output_insert(start, data, color):
-    global INDEX
-    with text_output_lock:
-        text_output.config(state=NORMAL)
-        if data.__class__ is str:
-            HISTORY[INDEX] = data
-            type_msg = data.split(" ", 1)
-            if color == OutputType.sending.value or color == OutputType.sending_e.value:
-                address = type_msg[0].split("[", 1)
-                if len(address) == 2:
-                    address = address[1].split("]", 1)[0]
-                    text_output.insert(start, address + '\n', color)
-            if len(type_msg) == 1:
-                type_msg = ""
-            else:
-                data = type_msg[1]
-                type_msg = type_msg[0]
-
-            # text_output_lock.acquire(blocking=False)
-            if "Image" in type_msg:
-                try:
-
-                    insert_image(data, start)
-                except ValueError:
-                    text_output.insert(start, "we cant uplode this file" + '\n', color)
-            else:
-                HISTORY[INDEX] = data + '\n'
-                text_output.insert(start, HISTORY[INDEX], color)
-
-            # text_output_lock.release()
-        elif data.__class__ is PhotoImage:
-
-            insert_image(data, start)
-        INDEX += 1
-        text_output.config(state=DISABLED)
-
-
-def insert_image(data, start):
-    new_size = 100
-    data = data.split(" ", 1)[1]
-    data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
-    decoded_b64 = base64.b64decode(data)
-    data = pickle.loads(decoded_b64)
-    data = data.resize((int(new_size * (data.size[0] / data.size[1])), int(new_size / (data.size[0] / data.size[1]))))
-    HISTORY[INDEX] = ImageTk.PhotoImage(data)
-    text_output.image_create(start, image=HISTORY[INDEX])
-    text_output.insert(END, '\n')
-
-
-def main1():
-    """co = 0
-    while True:
-        for i in range(6):
-            output_insert(END, str(co) + '\n', "block")
-            co += 1
-        time.sleep(2)
-        text_output.config(state=NORMAL)
-        text_output.delete(1.0, END)"""
-    while True:
+def call_open_group(open_group_thred):
+    if not open_group_thred.is_alive():
         try:
-            rlist, wlist, xlist = select.select([my_socket], [my_socket], [])
+            print("a")
+            open_group_thred.start()
+        except RuntimeError as e:
+            try:
+                open_group_thred.run()
+            except AttributeError as e:
 
-            if my_socket in rlist:
-                include_length_field, cmd, data = get_msg(my_socket)
-                if include_length_field:
-                    ans(cmd, data)
+                open_group_thred = threading.Thread(target=open_group)
+                open_group_thred.run()
 
-                else:
-                    try:
 
-                        my_socket.send(create_msg("There is no length field!"))
-                        my_socket.recv(1024)
-                    except ConnectionAbortedError:
-                        for i in range(CONNECT_TRYNIG):
-                            try:
-                                my_socket.connect(("127.0.0.1", PORT))
-                                break
-                            except ConnectionResetError:
-                                continue
-                        output_insert(END, "Closing", OutputType.system_info.value)
-                        my_socket.close()
-                        return
+def call_get_contect_info(get_contect_info_thred):
+    if not get_contect_info_thred.is_alive():
+        try:
 
-            for message in messages_to_write:
-                to_input, data, encrypt, msg_e = message
-                if my_socket in wlist:
-                    my_socket.send(create_msg(data))
-                    if encrypt is OutputType.sending:
-                        out = data.split(" ", 2)
-                        if int(out[1]) == SENDIN_DICT[out[0]][0]:
-                            output_insert(END, '\n\r' + str(to_input) + '\n\r' + SENDIN_DICT[out[0]][1],
-                                          OutputType.sending.value)
-                    elif encrypt is OutputType.sending_e:
-                        out = data.split(" ", 2)
-                        if int(out[1]) == SENDIN_DICT[out[0]][0]:
-                            output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " + SENDIN_DICT[out[0]][0] + " **",
-                                          OutputType.sending_e.value)
+            get_contect_info_thred.start()
+        except RuntimeError as e:
+            try:
 
-                    with massage_list_lock:
-                        messages_to_write.remove(message)
+                get_contect_info_thred.run()
+            except AttributeError as e:
 
-                        # massage_list_lock.release()
-                if not window.winfo_exists():
-                    output_insert(END, "Closing", OutputType.system_info.value)
-                    print("Closing\n")
-                    my_socket.close()
-                    return
-        except KeyboardInterrupt:
-            output_insert(END, "Closing", OutputType.system_info.value)
-            print("Closing\n")
-            my_socket.close()
-            return
-        except ConnectionResetError:
-            for i in range(CONNECT_TRYNIG):
-                try:
-                    my_socket.connect(("127.0.0.1", PORT))
-                    break
-                except ConnectionResetError:
-                    continue
-                except OSError as er:
-                    if er == "OSError: [WinError 10056] A connect request was made on an already connected socket":
-                        pass
-            output_insert(END, "Closing", OutputType.system_info.value)
-            my_socket.close()
+                get_contect_info_thred = threading.Thread(target=get_contect_info())
+                get_contect_info_thred.run()
+
+
+def call_get_names(get_names_thred):
+    if not get_names_thred.is_alive():
+        try:
+
+            get_names_thred.start()
+        except RuntimeError as e:
+            try:
+
+                get_names_thred.run()
+            except AttributeError as e:
+
+                get_names_thred = threading.Thread(target=get_names())
+                get_names_thred.run()
+
+
+def call_change_name(change_name_thred):
+    if not change_name_thred.is_alive():
+        try:
+
+            change_name_thred.start()
+        except RuntimeError as e:
+            try:
+
+                change_name_thred.run()
+            except AttributeError as e:
+
+                change_name_thred = threading.Thread(target=change_name())
+                change_name_thred.run()
+
+
+def call_add_people(add_people_thred):
+    if not add_people_thred.is_alive():
+        try:
+
+            add_people_thred.start()
+        except RuntimeError as e:
+            try:
+
+                add_people_thred.run()
+            except AttributeError as e:
+
+                add_people_thred = threading.Thread(target=add_people())
+                add_people_thred.run()
+
+
+def call_get_name(get_name_thred):
+    if not get_name_thred.is_alive():
+        try:
+
+            get_name_thred.start()
+        except RuntimeError as e:
+            try:
+
+                get_name_thred.run()
+            except AttributeError as e:
+
+                get_name_thred = threading.Thread(target=get_name())
+                get_name_thred.run()
+
+
+def call_send_massage(s):
+    if not s.is_alive():
+        try:
+
+            s.start()
+        except RuntimeError as e:
+            try:
+
+                s.run()
+            except AttributeError as e:
+
+                s = threading.Thread(target=send_massage, args=(OutputType.sending, False))
+                s.run()
+
+
+def call_send_massage_e(se):
+    if not se.is_alive():
+        try:
+            se.start()
+        except RuntimeError as e:
+            try:
+
+                se.run()
+            except AttributeError as e:
+
+                se = threading.Thread(target=send_massage, args=(OutputType.sending_e, False))
+                se.run()
+
+
+def call_send_image(i):
+    if not i.is_alive():
+        try:
+
+            i.start()
+        except RuntimeError as e:
+            try:
+
+                i.run()
+            except AttributeError as e:
+
+                i = threading.Thread(target=send_massage, args=(OutputType.sending, True))
+                i.run()
+
+
+def call_send_image_e(ie):
+    if not ie.is_alive():
+        try:
+
+            ie.start()
+        except RuntimeError as e:
+            try:
+
+                ie.run()
+            except AttributeError as e:
+
+                ie = threading.Thread(target=send_massage, args=(OutputType.sending_e, True))
+                ie.run()
 
 
 if __name__ == "__main__":

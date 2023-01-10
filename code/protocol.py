@@ -38,7 +38,7 @@ def create_msg(data):
 
 def get_msg(my_socket):
     try:
-        my_socket.setblocking(False)
+
         """Extract message from protocol, without the length field
            If length field does not include a number, returns False, "Error" """
         data_length = my_socket.recv(LENGTH_FIELD_SIZE).decode()
@@ -46,11 +46,12 @@ def get_msg(my_socket):
         if data_length.isdigit():
             data_length = int(data_length)
             try:
+                my_socket.setblocking(False)
                 while True:
                     r = my_socket.recv(data_length)
                     data += r.decode()
             except BlockingIOError:
-                pass
+                my_socket.setblocking(True)
             except:
                 count = 0
                 data = ""
@@ -58,7 +59,7 @@ def get_msg(my_socket):
                     count += 1048576
                     data += my_socket.recv(1048576).decode()
             finally:
-                tansaction = tuple(data.split(" ", 2))
+                """tansaction = tuple(data.split(" ", 2))
                 transaction, count, data = tansaction
                 count = int(count)
                 with DATA_DICT_LOCK:
@@ -81,7 +82,7 @@ def get_msg(my_socket):
                         DATA_DICT.pop(transaction)
                 else:
                     return True, "waiting", ""
-
+                """
                 cmd_get = data.split(" ", 1)
                 if len(cmd_get) == 1:
                     return True, cmd_get[0], ""
