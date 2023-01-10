@@ -4,23 +4,26 @@
    Possible client commands defined in protocol.py
 """
 import argparse
+import math
+import tkinter.messagebox as messagebox
 import tkinter.scrolledtext
-from enum import Enum
-import json
-import socket
-import sys
-import time
 import tkinter.filedialog
 from tkinter import *
-import multiprocessing
-from protocol import *
+from PIL import Image, ImageTk
+from enum import Enum
+import socket
 from stego import *
+import threading
+import rsa
 from protocol import *
 import select
+import json
+import time
+import sys
+
+import multiprocessing
+
 import msvcrt
-import threading
-import tkinter.messagebox as messagebox
-import rsa
 
 
 class ContectInfo:
@@ -40,14 +43,16 @@ class OutputType(Enum):
 
 
 def ip_from_user():
-    parser = argparse.ArgumentParser(usage="scurety chat app", description="Arpspoof Detector")
-    parser.add_argument("-ip", "--IP", type=str, default='127.0.0.1', help="ip you want to connect")
+    parser = argparse.ArgumentParser(usage="scurety chat app", description="scurety chat app")
+    parser.add_argument("-ip", "--ip", type=str, default='127.0.0.1', help="ip you want to connect")
     args = parser.parse_args()
     return args.ip
 
 
 msg_input = ""
 messages_to_write = []
+HISTORY = dict()
+INDEX = 0
 CONTECT_MENU = dict()
 SERVER_RESPONSE = ""
 TYPE_SERVER_RESPONSE = ""
@@ -55,6 +60,7 @@ BLACK_LIST_SIMBOLD = "[]{}"
 text_output_lock = threading.Lock()
 massage_list_lock = threading.Lock()
 CONNECT_TRYNIG = 10
+SENDIN_DICT = dict()
 
 
 def find_name(name):
@@ -124,6 +130,7 @@ def call_send_image_e(ie):
 
 
 def send_massage(encode, image):
+    msg_e = ""
     to_input = str(text_input_to.get())
     if to_input in EMPTY_DATA:
         label_error.configure(text="must by address!")
@@ -149,29 +156,62 @@ def send_massage(encode, image):
         msg = msg[count:]
         if msg in EMPTY_DATA:
             return
+        type_msg = msg.__class__.__name__
     elif image:
         img = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(("Image files", "*.png"),))
+        if img is None or img == "":
+            return
         msg = Image.open(img, 'r')
+        type_msg = msg.__class__.__name__
+        if encode is OutputType.sending_e:
+            msg = msg.resize((50, 50))
+        msg = pickle.dumps(msg)
+        msg = base64.b64encode(msg)
+        msg = "".join([format(n, '08b') for n in msg])
+        print("len image:", len(msg))
     send_to = set()
     if encode is OutputType.sending_e:
-        if image:
-            msg = msg.resize((50, 50))
+        msg_e = msg
         path_image = tkinter.filedialog.askopenfilename(title="open image", filetypes=(("Image files", "*.png"),))
+        if path_image is None or path_image == "":
+            return
         encoded_image = encode_info(time.localtime(), msg, path_image)
+        type_msg = encoded_image.__class__.__name__
         msg = pickle.dumps(encoded_image)
         msg = base64.b64encode(msg)
         msg = "".join([format(n, '08b') for n in msg])
+        print("msg:", len(msg))
 
     for i in to_input:
         if i in CONTECT_MENU.keys():
             send_to.add(CONTECT_MENU[i])
         send_to.add(i)
     msg = " " + msg
-    send_msg = (str(send_to), "msg ", to_input, msg, encode)
+    transaction_id = time.localtime()
+    transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
+        transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
+    print("num transaction:", str(math.ceil(len(msg) / 1048576)).zfill(3))
+
+    list_msg = []
+    count_msg = 1
+    msg = "msg " + str(send_to) + type_msg + " " + msg
+    for i in range(0, len(msg), 1048576):
+        if i + 1048576 > len(msg):
+            list_msg.append(transaction_id + str(count_msg) + " " + msg[i:])
+        else:
+            list_msg.append(transaction_id + str(count_msg) + " " + msg[i:i + 1048576])
+            count_msg += 1
+    print("len list", len(list_msg))
     with massage_list_lock:
-        # massage_list_lock.acquire(blocking=False)
-        messages_to_write.append(send_msg)
-        # massage_list_lock.release()
+        SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), ""]
+        for i in list_msg:
+
+            send_msg = (to_input, i, encode, msg_e)
+
+            SENDIN_DICT[transaction_id][1] += i.split(" ", 2)[2]
+                # massage_list_lock.acquire(blocking=False)
+            messages_to_write.append(send_msg)
+                # massage_list_lock.release()
     text_input_to.delete(0, END)
     text_input_massage.delete(1.0, END)
     return
@@ -222,8 +262,13 @@ def get_contect_info():
 
 def get_names():
     with massage_list_lock:
+        msg = "get_names"
         # massage_list_lock.acquire(blocking=False)
-        messages_to_write.append(("", "get_names", "", "", OutputType.sending))
+        transaction_id = time.localtime()
+        transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
+            transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
+        SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), msg]
+        messages_to_write.append(("", transaction_id + str(1) + " " + msg, OutputType.sending, ""))
         # massage_list_lock.release()
 
 
@@ -234,9 +279,14 @@ def change_name():
             if i in BLACK_LIST_SIMBOLD:
                 label_error.configure(text="name contect cant include [,],{,}!")
                 return
-        send_msg = ("", "name ", "", new_name, OutputType.sending)
+        new_name = "name " + new_name
+        transaction_id = time.localtime()
+        transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
+            transaction_id.tm_sec.real) + "_" + str(math.ceil(len(new_name) / 1048576)).zfill(3) + " "
+        send_msg = ("", transaction_id + str(1) + " " + new_name, OutputType.sending, "")
         with massage_list_lock:
             # massage_list_lock.acquire(blocking=False)
+            SENDIN_DICT[transaction_id] = [math.ceil(len(new_name) / 1048576), new_name]
             messages_to_write.append(send_msg)
             # massage_list_lock.release()
         new_name_win.destroy()
@@ -286,13 +336,21 @@ def add_people():
 
 
 def getting_msg(data):
-    sender = data.splite(" ", 1)
-    data = data[1]
+    data = data.split(" ", 2)
+    sender = data[0]
+    type_msg = data[1]
+    data = data[2]
     try:
-        data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
-        decoded_b64 = base64.b64decode(data)
-        data = pickle.loads(decoded_b64)
+        if type_msg == Image.__name__ or type_msg == "PngImageFile":
+            print("len", len(data))
+            data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
+            decoded_b64 = base64.b64decode(data)
+            data = pickle.loads(decoded_b64)
+        elif type_msg == str.__name__:
+            pass
     except ValueError:
+        pass
+    except EOFError:
         pass
     if data is Image:
         if "date" in data.info.keys():
@@ -303,7 +361,6 @@ def getting_msg(data):
                 data = PhotoImage(data)
                 output_insert(END, '\n\r' + sender + " send:\n", OutputType.receive_e.value)
                 output_insert(END, data, "")
-
 
         else:
             data = PhotoImage(data)
@@ -317,7 +374,7 @@ def getting_msg(data):
 def ans(cmd, data):
     if cmd == "msg":
         getting_msg(data)
-    if "ans_all" in cmd:
+    elif "ans_all" in cmd:
         data = json.loads(data)
         output = "people in server:" + '\n\r'.join([str(item) for item in data.items()])
         output_insert(END, output, OutputType.server_ans.value)
@@ -339,6 +396,8 @@ def ans(cmd, data):
         if key is not None:
             CONTECT_MENU.pop(key)
             output_insert(END, data + "out from server", OutputType.server_ans.value)
+    else:
+        return
 
 
 def get_name():
@@ -352,7 +411,12 @@ def get_name():
             msg = CONTECT_MENU[msg]
         with massage_list_lock:
             # massage_list_lock.acquire(blocking=False)
-            messages_to_write.append(("", "get_name ", "", msg, OutputType.sending))
+            msg = "get_name " + msg
+            transaction_id = time.localtime()
+            transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
+                transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
+            SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), msg]
+            messages_to_write.append(("", transaction_id + msg, OutputType.sending, ""))
             # massage_list_lock.release()
         get_name_text.destroy()
 
@@ -468,7 +532,8 @@ def main():
 
     ip = ip_from_user()
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # my_socket.connect((ip, PORT))
+
+    my_socket.connect((ip, PORT))
 
     if text_output_lock.locked():
         text_output_lock.release()
@@ -490,7 +555,6 @@ def main():
     text_output.tag_config(OutputType.server_ans.value, foreground="#585858")
     text_output.tag_config(OutputType.error_msg.value, foreground="red")
     label_error = Label(window, foreground="red")
-
     label_to = Label(window, text="To:", height=1, width=3, compound="left")
     label_msg = Label(window, text="Massage:", height=1, width=8, compound="left")
 
@@ -560,18 +624,52 @@ def main():
 
 
 def output_insert(start, data, color):
+    global INDEX
     with text_output_lock:
         text_output.config(state=NORMAL)
         if data.__class__ is str:
-            # text_output_lock.acquire(blocking=False)
+            HISTORY[INDEX] = data
+            type_msg = data.split(" ", 1)
+            if color == OutputType.sending.value or color == OutputType.sending_e.value:
+                address = type_msg[0].split("[", 1)
+                if len(address) == 2:
+                    address = address[1].split("]", 1)[0]
+                    text_output.insert(start, address + '\n', color)
+            if len(type_msg) == 1:
+                type_msg = ""
+            else:
+                data = type_msg[1]
+                type_msg = type_msg[0]
 
-            text_output.insert(start, data + '\n', color)
+            # text_output_lock.acquire(blocking=False)
+            if "Image" in type_msg:
+                try:
+
+                    insert_image(data, start)
+                except ValueError:
+                    text_output.insert(start, "we cant uplode this file" + '\n', color)
+            else:
+                HISTORY[INDEX] = data + '\n'
+                text_output.insert(start, HISTORY[INDEX], color)
 
             # text_output_lock.release()
         elif data.__class__ is PhotoImage:
-            text_output.image_create(start, data)
-            text_output.insert(END, '\n')
+
+            insert_image(data, start)
+        INDEX += 1
         text_output.config(state=DISABLED)
+
+
+def insert_image(data, start):
+    new_size = 100
+    data = data.split(" ", 1)[1]
+    data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
+    decoded_b64 = base64.b64decode(data)
+    data = pickle.loads(decoded_b64)
+    data = data.resize((int(new_size * (data.size[0] / data.size[1])), int(new_size / (data.size[0] / data.size[1]))))
+    HISTORY[INDEX] = ImageTk.PhotoImage(data)
+    text_output.image_create(start, image=HISTORY[INDEX])
+    text_output.insert(END, '\n')
 
 
 def main1():
@@ -594,6 +692,7 @@ def main1():
 
                 else:
                     try:
+
                         my_socket.send(create_msg("There is no length field!"))
                         my_socket.recv(1024)
                     except ConnectionAbortedError:
@@ -608,18 +707,23 @@ def main1():
                         return
 
             for message in messages_to_write:
-                send_to, cmd_to_send, to_input, data, encrypt = message
+                to_input, data, encrypt, msg_e = message
                 if my_socket in wlist:
-                    my_socket.send(create_msg(cmd_to_send + send_to + data))
+                    my_socket.send(create_msg(data))
                     if encrypt is OutputType.sending:
-                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + data, OutputType.sending.value)
+                        out = data.split(" ", 2)
+                        if int(out[1]) == SENDIN_DICT[out[0]][0]:
+                            output_insert(END, '\n\r' + str(to_input) + '\n\r' + SENDIN_DICT[out[0]][1],
+                                          OutputType.sending.value)
                     elif encrypt is OutputType.sending_e:
-                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " + data + " **",
-                                      OutputType.sending_e.value)
+                        out = data.split(" ", 2)
+                        if int(out[1]) == SENDIN_DICT[out[0]][0]:
+                            output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " + SENDIN_DICT[out[0]][0] + " **",
+                                          OutputType.sending_e.value)
 
                     with massage_list_lock:
-                        # massage_list_lock.acquire(blocking=False)
                         messages_to_write.remove(message)
+
                         # massage_list_lock.release()
                 if not window.winfo_exists():
                     output_insert(END, "Closing", OutputType.system_info.value)
@@ -638,6 +742,9 @@ def main1():
                     break
                 except ConnectionResetError:
                     continue
+                except OSError as er:
+                    if er == "OSError: [WinError 10056] A connect request was made on an already connected socket":
+                        pass
             output_insert(END, "Closing", OutputType.system_info.value)
             my_socket.close()
 

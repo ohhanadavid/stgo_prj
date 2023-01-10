@@ -10,6 +10,7 @@
 import base64
 import json
 import pickle
+import threading
 import time
 import stego
 
@@ -21,6 +22,9 @@ LENGTH_FIELD_SIZE_STR_ERROR = "YOU ENTER MORE THEN " + str(10 ** LENGTH_FIELD_SI
 TYPE_LENGTH = 5
 ANS_SERVER = "{'server'}"
 EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a']
+DATA_DICT = dict()
+DATA_DICT_LOCK = threading.Lock()
+
 
 def create_msg(data):
     """Create a valid protocol message, with length field"""
@@ -33,44 +37,62 @@ def create_msg(data):
 
 
 def get_msg(my_socket):
-    """Extract message from protocol, without the length field
-       If length field does not include a number, returns False, "Error" """
-    data_length = my_socket.recv(LENGTH_FIELD_SIZE).decode()
-    data = ""
-    if data_length.isdigit():
-        try:
-            data = my_socket.recv(int(data_length)).decode()
-        except:
-            count = 0
-            data = ""
-            while count < data_length:
-                count += 1048576
-                data += my_socket.recv(1048576).decode()
-        finally:
-            cmd_get = data.split(" ", 1)
-            if len(cmd_get) == 1:
-                return True, cmd_get[0], ""
-            else:
-                return True, cmd_get[0], cmd_get[1]
-            """cmd = cmd_get[0]
-            data = cmd_get[1].split('}', 1)
-            if len(data) > 1:
-                to_msg = data[0] + '}'
-                msg = data[1]
-                to_msg = eval(to_msg)
-            else:
-                data = data[0]
-                if data == ANS_SERVER:
-                    to_msg = ANS_SERVER
-                    data = ""
-                else:
-                    to_msg = ""
-                msg = ""
-            
-            return True, cmd, to_msg, msg"""
+    try:
+        my_socket.setblocking(False)
+        """Extract message from protocol, without the length field
+           If length field does not include a number, returns False, "Error" """
+        data_length = my_socket.recv(LENGTH_FIELD_SIZE).decode()
+        data = ""
+        if data_length.isdigit():
+            data_length = int(data_length)
+            try:
+                while True:
+                    r = my_socket.recv(data_length)
+                    data += r.decode()
+            except BlockingIOError:
+                pass
+            except:
+                count = 0
+                data = ""
+                while count < data_length:
+                    count += 1048576
+                    data += my_socket.recv(1048576).decode()
+            finally:
+                tansaction = tuple(data.split(" ", 2))
+                transaction, count, data = tansaction
+                count = int(count)
+                with DATA_DICT_LOCK:
+                    if transaction in DATA_DICT.keys():
 
-    else:
-        # if client fall by ctrl+c
-        if data_length == "":
-            return False, None,  "ERROR: This message without length field "
-        return False, None,  "ERROR: This message without length field "
+                        DATA_DICT[transaction][1][count] = data
+                    else:
+                        limit = int(transaction[-3:])
+
+                        DATA_DICT[transaction] = [limit, dict()]
+                        DATA_DICT[transaction][1][count] = data
+
+                if len(DATA_DICT[transaction][1]) == DATA_DICT[transaction][0]:
+                    print("len(DATA_DICT[transaction][1]):", len(DATA_DICT[transaction][1]))
+                    print("DATA_DICT[transaction][0]:", DATA_DICT[transaction][0])
+                    data = ""
+                    with DATA_DICT_LOCK:
+                        for i in range(DATA_DICT[transaction][0]):
+                            data += DATA_DICT[transaction][1][i + 1]
+                        DATA_DICT.pop(transaction)
+                else:
+                    return True, "waiting", ""
+
+                cmd_get = data.split(" ", 1)
+                if len(cmd_get) == 1:
+                    return True, cmd_get[0], ""
+                else:
+                    return True, cmd_get[0], cmd_get[1]
+
+
+        else:
+            # if client fall by ctrl+c
+            if data_length == "":
+                return False, None, "ERROR: This message without length field "
+            return False, None, "ERROR: This message without length field "
+    except ConnectionAbortedError:
+        return False, None, "ERROR: This message without length field "

@@ -1,8 +1,10 @@
+import math
 import msvcrt
 import threading
 import time
 import tkinter
 
+import PIL.ImageTk
 import future
 import requests
 import rsa
@@ -17,36 +19,85 @@ import io
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
-from PIL import Image
+from PIL import Image,ImageTk
+import tkinter.scrolledtext
+print(2.000000000000001 / 2)
+print(math.ceil(2.0000000000000000000000000000000000000000000000000000000001 / 2))
+p="acvfdf001"
+c=p[-3:]
+d=p[-1:-3]
+print(c,d)
 
+
+l=[1,2,3,4]
+for i in range(0,len(l),3):
+    print(i)
+
+for i in range(5):
+    while True:
+        try:
+            print(next(p))
+        except StopIteration:
+            break
+    l+=[11,12,13,14]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+w = Tk()
+t = tkinter.scrolledtext.ScrolledText(w, width=100, height=20)
+i=r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\d.png"
+im=Image.open(i,'r')
+im=im.resize((int(100 * (im.size[0] / im.size[1])), int(100 / (im.size[0] / im.size[1]))))
+im =ImageTk.PhotoImage(im)
+t.image_create(END,image=im)
+t.pack()
+w.mainloop()
 
 import tkinter as tk
-class A:
-    a=""
-    b=0
-    def __init__(self,a,b):
-        self.a=a
-        self.b=b
 
-o=dict()
+
+class A:
+    a = ""
+    b = 0
+
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
+
+
+o = dict()
 
 for i in range(6):
-    o[ord(str(i))]=A(str(i),i)
+    o[ord(str(i))] = A(str(i), i)
 print(o.items())
 print('\n\r'.join([str(item) for item in o.items()]))
-print("o:",o)
+print("o:", o)
 p = [y.a for y in o.values()]
 print(p)
-f=threading.Lock()
-d={1:2,2:3,4:5}
-o=json.dumps(d)
+f = threading.Lock()
+d = {1: 2, 2: 3, 4: 5}
+o = json.dumps(d)
 print(o)
 print(json.loads(o))
-p=list(d)
+p = list(d)
 for i in p:
     print(i)
 
-i=0
+i = 0
 f.acquire(blocking=False)
 print(f.locked())
 f.release()
@@ -54,38 +105,27 @@ print(f.locked())
 with f:
     print(f.locked())
     print(i)
-    i+=1
+    i += 1
 print(f.locked())
 
+c = "p"
 
 
-
-
-
-
-
-
-
-
-c="p"
 def i(a):
     print(a)
 
 
 print(o.items())
-e=list(map(lambda x,y:{x:y.a},o.keys(),o.values()))
+e = list(map(lambda x, y: {x: y.a}, o.keys(), o.values()))
 print(e)
-t=threading.Thread(target=i,args=c)
-t.daemon=False
+t = threading.Thread(target=i, args=c)
+t.daemon = False
 t.run()
 if t.is_alive():
     t.run()
 else:
     t.isAlive()
     t.run()
-
-
-
 
 d = ['k', 'j', 'k', 't']
 print(str(set(d)))
@@ -94,7 +134,7 @@ print(d, set(d))
 d = dict()
 d['r'] = "asd"
 d['tt'] = "fdgd"
-p=str(d)
+p = str(d)
 print(p)
 for i in d.items():
     print(i)
@@ -104,8 +144,7 @@ window = tk.Tk()
 
 
 def error():
-
-    if  'a' in t.get():
+    if 'a' in t.get():
         b.configure(state=DISABLED)
         return False
     b.configure(state=NORMAL)

@@ -66,8 +66,11 @@ def encode_enc(newimg, datalist, lendata, codex, primeh, primem):
     count = 0
     for i in range(lendata):
         for k in range(3):
-            p = c.__next__()
-            o = c.__next__()
+            try:
+                p = c.__next__()
+                o = c.__next__()
+            except StopIteration as e:
+                print(e)
             xy = ord(p) * ord(o)
             x = (xy * primeh) % w
             y = (xy * primem) % h
@@ -183,6 +186,7 @@ def encode_info(t, data, img=""):
             pdf_file = PyPDF2.PdfReader(pdf_file_obj)
             c = 0
             page_obj = pdf_file.pages[c]
+    print(len(codex), lendata)
     save_image = encode_enc(image, data, lendata, codex, prime(h), prime(m))
     """
     new_img_name = tkinter.filedialog.asksaveasfilename(title="save image", filetypes=(("Image files", "*.png"),))
@@ -289,6 +293,7 @@ def main():
     u = encode_info(pt.localtime(), "aba sabbab fkfgkf", 'dd.png')
 
     print(decode_info(u))
+
 
 if __name__ == "__main__":
     main()
