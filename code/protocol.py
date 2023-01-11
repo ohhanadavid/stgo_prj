@@ -24,6 +24,7 @@ ANS_SERVER = "{'server'}"
 EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a']
 DATA_DICT = dict()
 DATA_DICT_LOCK = threading.Lock()
+RECVE_LOCK = threading.Lock()
 
 
 def create_msg(data):
@@ -38,62 +39,70 @@ def create_msg(data):
 
 def get_msg(my_socket):
     try:
-
+        count = 0
         """Extract message from protocol, without the length field
            If length field does not include a number, returns False, "Error" """
-        data_length = my_socket.recv(LENGTH_FIELD_SIZE).decode()
-        data = ""
-        if data_length.isdigit():
-            data_length = int(data_length)
-            try:
-                my_socket.setblocking(False)
-                while True:
-                    r = my_socket.recv(data_length)
-                    data += r.decode()
-            except BlockingIOError:
-                my_socket.setblocking(True)
-            except:
-                count = 0
-                data = ""
-                while count < data_length:
-                    count += 1048576
-                    data += my_socket.recv(1048576).decode()
-            finally:
-                """tansaction = tuple(data.split(" ", 2))
-                transaction, count, data = tansaction
-                count = int(count)
-                with DATA_DICT_LOCK:
-                    if transaction in DATA_DICT.keys():
-
-                        DATA_DICT[transaction][1][count] = data
-                    else:
-                        limit = int(transaction[-3:])
-
-                        DATA_DICT[transaction] = [limit, dict()]
-                        DATA_DICT[transaction][1][count] = data
-
-                if len(DATA_DICT[transaction][1]) == DATA_DICT[transaction][0]:
-                    print("len(DATA_DICT[transaction][1]):", len(DATA_DICT[transaction][1]))
-                    print("DATA_DICT[transaction][0]:", DATA_DICT[transaction][0])
+        with RECVE_LOCK:
+            data_length = my_socket.recv(LENGTH_FIELD_SIZE).decode()
+            data = ""
+            if data_length.isdigit():
+                data_length = int(data_length)
+                print("data_length", data_length)
+                try:
+                    my_socket.setblocking(False)
+                    while count < data_length:
+                        try:
+                            r = ""
+                            r = my_socket.recv(181935040)
+                            print("r", len(r))
+                            data += r.decode()
+                            count += len(r)
+                        except BlockingIOError as e:
+                            print(e)
+                            print(len(data))
+                    my_socket.setblocking(True)
+                except:
+                    count = 0
                     data = ""
+                    while count < data_length:
+                        count += 1048576
+                        data += my_socket.recv(1048576).decode()
+                finally:
+                    """tansaction = tuple(data.split(" ", 2))
+                    transaction, count, data = tansaction
+                    count = int(count)
                     with DATA_DICT_LOCK:
-                        for i in range(DATA_DICT[transaction][0]):
-                            data += DATA_DICT[transaction][1][i + 1]
-                        DATA_DICT.pop(transaction)
-                else:
-                    return True, "waiting", ""
-                """
-                cmd_get = data.split(" ", 1)
-                if len(cmd_get) == 1:
-                    return True, cmd_get[0], ""
-                else:
-                    return True, cmd_get[0], cmd_get[1]
+                        if transaction in DATA_DICT.keys():
+    
+                            DATA_DICT[transaction][1][count] = data
+                        else:
+                            limit = int(transaction[-3:])
+    
+                            DATA_DICT[transaction] = [limit, dict()]
+                            DATA_DICT[transaction][1][count] = data
+    
+                    if len(DATA_DICT[transaction][1]) == DATA_DICT[transaction][0]:
+                        print("len(DATA_DICT[transaction][1]):", len(DATA_DICT[transaction][1]))
+                        print("DATA_DICT[transaction][0]:", DATA_DICT[transaction][0])
+                        data = ""
+                        with DATA_DICT_LOCK:
+                            for i in range(DATA_DICT[transaction][0]):
+                                data += DATA_DICT[transaction][1][i + 1]
+                            DATA_DICT.pop(transaction)
+                    else:
+                        return True, "waiting", ""
+                    """
+                    cmd_get = data.split(" ", 1)
+                    if len(cmd_get) == 1:
+                        return True, cmd_get[0], ""
+                    else:
+                        return True, cmd_get[0], cmd_get[1]
 
 
-        else:
-            # if client fall by ctrl+c
-            if data_length == "":
+            else:
+                # if client fall by ctrl+c
+                if data_length == "":
+                    return False, None, "ERROR: This message without length field "
                 return False, None, "ERROR: This message without length field "
-            return False, None, "ERROR: This message without length field "
     except ConnectionAbortedError:
         return False, None, "ERROR: This message without length field "

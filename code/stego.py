@@ -27,8 +27,11 @@ PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 def find_path(dir_in_path):
+
     files = os.walk(PATH + r'\\' + dir_in_path)
-    return list(files)[0][-1]
+    file_l = list(files)[0][-1]
+    file_l.sort()
+    return file_l
 
 
 def prime(n):
@@ -276,8 +279,9 @@ def decode_info(image):
         info = pickle.loads(decoded_b64)
     except binascii.Error:
         return data
-
-    new_img_name = PATH + r"\\images\\" + image.info['image name']
+    except pickle.UnpicklingError:
+        return data
+    new_img_name = tkinter.filedialog.asksaveasfilename(title="open image", filetypes=(("Image files", "*.png"),))
     info.save(new_img_name, str(new_img_name.split(".")[1].upper()))
     return "image save in: " + new_img_name
 

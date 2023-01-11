@@ -19,18 +19,44 @@ import io
 from tkinter import *
 from tkinter import filedialog
 from tkinter import messagebox
-from PIL import Image,ImageTk
+from PIL import Image, ImageTk
 import tkinter.scrolledtext
+from PIL.PngImagePlugin import PngImageFile
+from PIL.JpegImagePlugin import JpegImageFile
+from PIL.GifImagePlugin import GifImageFile
+from PIL.BmpImagePlugin import BmpImageFile
+from PIL.TiffImagePlugin import TiffImageFile
+from PIL.IcoImagePlugin import IcoImageFile
+
+l=['a','d','b','c']
+l.sort()
+print(l)
+
+
+f = open("1.txt", 'r').read()
+p = open("2.txt", 'r').read()
+o = Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\d.png", 'r')
+o = pickle.dumps(o)
+o = base64.b64encode(o)
+o = "".join([format(n, '08b') for n in o])
+print(o == f)
+print(o == p)
+print(p == f)
+
+data = b"".join([bytes(chr(int(p[i:i + 8], 2)), "utf-8") for i in range(0, len(p), 8)])
+print("len", len(data))
+decoded_b64 = base64.b64decode(data)
+data = pickle.loads(decoded_b64)
+
 print(2.000000000000001 / 2)
 print(math.ceil(2.0000000000000000000000000000000000000000000000000000000001 / 2))
-p="acvfdf001"
-c=p[-3:]
-d=p[-1:-3]
-print(c,d)
+p = "acvfdf001"
+c = p[-3:]
+d = p[-1:-3]
+print(c, d)
 
-
-l=[1,2,3,4]
-for i in range(0,len(l),3):
+l = [1, 2, 3, 4]
+for i in range(0, len(l), 3):
     print(i)
 
 for i in range(5):
@@ -39,31 +65,15 @@ for i in range(5):
             print(next(p))
         except StopIteration:
             break
-    l+=[11,12,13,14]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    l += [11, 12, 13, 14]
 
 w = Tk()
 t = tkinter.scrolledtext.ScrolledText(w, width=100, height=20)
-i=r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\d.png"
-im=Image.open(i,'r')
-im=im.resize((int(100 * (im.size[0] / im.size[1])), int(100 / (im.size[0] / im.size[1]))))
-im =ImageTk.PhotoImage(im)
-t.image_create(END,image=im)
+i = r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\d.png"
+im = Image.open(i, 'r')
+im = im.resize((int(100 * (im.size[0] / im.size[1])), int(100 / (im.size[0] / im.size[1]))))
+im = ImageTk.PhotoImage(im)
+t.image_create(END, image=im)
 t.pack()
 w.mainloop()
 

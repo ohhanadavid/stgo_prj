@@ -5,6 +5,7 @@
 """
 import argparse
 import math
+import pickle
 import tkinter.messagebox as messagebox
 import tkinter.scrolledtext
 import tkinter.filedialog
@@ -12,6 +13,14 @@ from tkinter import *
 from PIL import Image, ImageTk
 from enum import Enum
 import socket
+
+from PIL.PngImagePlugin import PngImageFile
+from PIL.JpegImagePlugin import JpegImageFile
+from PIL.GifImagePlugin import GifImageFile
+from PIL.BmpImagePlugin import BmpImageFile
+from PIL.TiffImagePlugin import TiffImageFile
+from PIL.IcoImagePlugin import IcoImageFile
+
 from stego import *
 import threading
 import rsa
@@ -62,6 +71,9 @@ text_output_lock = threading.Lock()
 massage_list_lock = threading.Lock()
 CONNECT_TRYNIG = 10
 SENDIN_DICT = dict()
+EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a']
+IMAGE_TYPE = [JpegImageFile.__name__, PngImageFile.__name__, GifImageFile.__name__, BmpImageFile.__name__,
+              TiffImageFile.__name__, IcoImageFile.__name__,PhotoImage.__class__.__name__]
 
 
 def find_name(name):
@@ -143,7 +155,7 @@ def send_massage(encode, image):
         print("len image:", len(msg))
     send_to = set()
     if encode is OutputType.sending_e:
-        msg_e = msg
+        msg_e = "msg " + str(send_to) + "str" + " " + msg
         path_image = tkinter.filedialog.askopenfilename(title="open image", filetypes=(("Image files", "*.png"),))
         if path_image is None or path_image == "":
             return
@@ -152,23 +164,23 @@ def send_massage(encode, image):
         msg = pickle.dumps(encoded_image)
         msg = base64.b64encode(msg)
         msg = "".join([format(n, '08b') for n in msg])
-        print("msg:", len(msg))
+        print("msg-e:", len(msg))
 
     for i in to_input:
         if i in CONTECT_MENU.keys():
             send_to.add(CONTECT_MENU[i])
         send_to.add(i)
     msg = " " + msg
-    # transaction_id = time.localtime()
+    """"# transaction_id = time.localtime()
     # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
     #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
     # print("num transaction:", str(math.ceil(len(msg) / 1048576)).zfill(3))
 
     list_msg = []
-    count_msg = 1
+    count_msg = 1"""
     msg = "msg " + str(send_to) + type_msg + " " + msg
     send_msg = (to_input, msg, encode, msg_e)
-    # for i in range(0, len(msg), 1048576):
+    """"# for i in range(0, len(msg), 1048576):
     #    if i + 1048576 > len(msg):
     #        list_msg.append(transaction_id + str(count_msg) + " " + msg[i:])
     #    else:
@@ -181,8 +193,9 @@ def send_massage(encode, image):
     #        send_msg = (to_input, i, encode, msg_e)
 
     #        SENDIN_DICT[transaction_id][1] += i.split(" ", 2)[2]
-    # massage_list_lock.acquire(blocking=False)
-    messages_to_write.append(send_msg)
+    # massage_list_lock.acquire(blocking=False)"""
+    with massage_list_lock:
+        messages_to_write.append(send_msg)
     # massage_list_lock.release()
     text_input_to.delete(0, END)
     text_input_massage.delete(1.0, END)
@@ -314,35 +327,49 @@ def getting_msg(data):
     sender = data[0]
     type_msg = data[1]
     data = data[2]
+    i = 0
+    for i in range(len(data)):
+        if data[i] in EMPTY_DATA:
+            continue
+        else:
+            break
+    data = data[i + 1:]
+    f = open("2.txt", 'w')
+    f.write(data)
+    f.close()
     try:
-        if type_msg == Image.__name__ or type_msg == "PngImageFile":
+        if type_msg == Image.__name__ or type_msg in IMAGE_TYPE:
             print("len", len(data))
             data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
             decoded_b64 = base64.b64decode(data)
             data = pickle.loads(decoded_b64)
+
         elif type_msg == str.__name__:
             pass
-    except ValueError:
-        pass
-    except EOFError:
-        pass
-    if data is Image:
+    except pickle.PickleError as e:
+        print(e)
+
+    except ValueError as e:
+        print(e)
+    except EOFError as e:
+        print(e)
+    if data.__class__ is Image or data.__class__.__name__ in IMAGE_TYPE:
         if "date" in data.info.keys():
             data = stego.decode_info(data)
             if data.__class__ is str:
-                output_insert(END, '\n\r' + sender + "say:\n" '** ' + data + ' **', OutputType.receive_e.value)
+                output_insert(END,"msg str "+ '\n\r' + sender + " say:\n" '**\n ' + data + ' **', OutputType.receive_e.value)
             else:
-                data = PhotoImage(data)
-                output_insert(END, '\n\r' + sender + " send:\n", OutputType.receive_e.value)
+                data = ImageTk.PhotoImage(data)
+                output_insert(END,"msg str "+ '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
                 output_insert(END, data, "")
 
         else:
-            data = PhotoImage(data)
-            output_insert(END, '\n\r' + sender + "send:\n" '** ', OutputType.receive_e.value)
+
+            output_insert(END,"msg str "+ '\n\r' + sender + " send:\n", OutputType.receive_e.value)
             output_insert(END, data, "")
-            output_insert(END, '\n\r' + '** ', OutputType.receive_e.value)
+
     else:
-        output_insert(END, '\n\r' + data, OutputType.receive.value)
+        output_insert(END, "msg str "+'\n\r' + sender + '\n\r' + data, OutputType.receive.value)
 
 
 def ans(cmd, data):
@@ -358,11 +385,11 @@ def ans(cmd, data):
     elif "return_name" in cmd:
         cmd = cmd.split('<', 1)[1].split('>', 1)[0]
         CONTECT_MENU[cmd] = data
-        output_insert(END, data, OutputType.server_ans.value)
+        output_insert(END, "return_name str " + data, OutputType.server_ans.value)
     elif "ans_error" in cmd:
         output_insert(END, data, OutputType.error_msg.value)
     elif cmd == 'ans_name_':
-        output_insert(END, "your name is: " + data, OutputType.server_ans.value)
+        output_insert(END, "return_name str your name is: " + data, OutputType.server_ans.value)
     elif "ans_success" in cmd:
         output_insert(END, "your name change to: " + data, OutputType.server_ans.value)
     elif "ans_delete" in cmd:
@@ -380,7 +407,7 @@ def output_insert(start, data, color):
         text_output.config(state=NORMAL)
         if data.__class__ is str:
             HISTORY[INDEX] = data
-            type_msg = data.split(" ", 1)
+            type_msg = data.split(" ", 2)
             if color == OutputType.sending.value or color == OutputType.sending_e.value:
                 address = type_msg[0].split("[", 1)
                 if len(address) == 2:
@@ -389,13 +416,19 @@ def output_insert(start, data, color):
             if len(type_msg) == 1:
                 type_msg = ""
             else:
-                data = type_msg[1]
-                type_msg = type_msg[0]
+                if len(type_msg) == 3:
+                    data = type_msg[2]
+                    type_msg = type_msg[1]
+                    type_msg = type_msg.split('}', 1)
+                    if len(type_msg) == 2:
+                        type_msg = type_msg[1]
+                else:
+                    data = type_msg[1]
+                    type_msg = type_msg[0]
 
             # text_output_lock.acquire(blocking=False)
-            if "Image" in type_msg:
+            if type_msg in IMAGE_TYPE:
                 try:
-
                     insert_image(data, start)
                 except ValueError:
                     text_output.insert(start, "we cant uplode this file" + '\n', color)
@@ -404,7 +437,7 @@ def output_insert(start, data, color):
                 text_output.insert(start, HISTORY[INDEX], color)
 
             # text_output_lock.release()
-        elif data.__class__ is PhotoImage:
+        elif data.__class__.__name__ in IMAGE_TYPE or data.__class__ is ImageTk.PhotoImage:
 
             insert_image(data, start)
         INDEX += 1
@@ -413,12 +446,32 @@ def output_insert(start, data, color):
 
 def insert_image(data, start):
     new_size = 100
-    data = data.split(" ", 1)[1]
-    data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
-    decoded_b64 = base64.b64decode(data)
-    data = pickle.loads(decoded_b64)
-    data = data.resize((int(new_size * (data.size[0] / data.size[1])), int(new_size / (data.size[0] / data.size[1]))))
-    HISTORY[INDEX] = ImageTk.PhotoImage(data)
+    if data.__class__ is str:
+        i = 0
+        for i in range(len(data)):
+            if data[i] in EMPTY_DATA:
+                continue
+            else:
+                break
+        data = data[i:]
+        data = data.split(" ", 1)[1]
+        data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
+        decoded_b64 = base64.b64decode(data)
+        data = pickle.loads(decoded_b64)
+    if hasattr(data, 'resize'):
+        data = data.resize(
+            (int(new_size * (data.size[0] / data.size[1])), int(new_size / (data.size[0] / data.size[1]))))
+        HISTORY[INDEX] = ImageTk.PhotoImage(data)
+    elif hasattr(data, 'config'):
+        if hasattr(data.config, 'width') and hasattr(data.config, 'height'):
+            data.config(width=int(new_size * (data.size[0] / data.size[1])),
+                        height=int(new_size / (data.size[0] / data.size[1])))
+            HISTORY[INDEX] = ImageTk.PhotoImage(data)
+    elif data is not ImageTk.PhotoImage.__class__:
+        HISTORY[INDEX] = ImageTk.PhotoImage(data)
+    else:
+        HISTORY[INDEX] =data
+
     text_output.image_create(start, image=HISTORY[INDEX])
     text_output.insert(END, '\n')
 
@@ -544,17 +597,20 @@ def main1():
             for message in messages_to_write:
                 to_input, data, encrypt, msg_e = message
                 if my_socket in wlist:
-                    my_socket.send(create_msg(data))
+                    print("len data:",len(data))
+                    a=create_msg(data)
+                    print("len a:", len(a))
+                    my_socket.send(a)
                     if encrypt is OutputType.sending:
                         out = data.split(" ", 2)
-                        #if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:
+                        # if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:
                         output_insert(END, '\n\r' + str(to_input) + '\n\r' + data,
-                                          OutputType.sending.value)
+                                      OutputType.sending.value)
                     elif encrypt is OutputType.sending_e:
-                        #out = data.split(" ", 2)
-                        #if int(out[1]) == SENDIN_DICT[out[0]][0]:
-                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " +data
-                                          + " **", OutputType.sending_e.value)
+                        # out = data.split(" ", 2)
+                        # if int(out[1]) == SENDIN_DICT[out[0]][0]:
+                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " + msg_e
+                                      + " **", OutputType.sending_e.value)
 
                     with massage_list_lock:
                         messages_to_write.remove(message)

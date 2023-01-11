@@ -259,6 +259,7 @@ def send_method():
         rlist, wlist, xlist = select.select([], sockets, [])
         for message_to_send in MESSAGES_TO_SEND:
             current_socket, data = message_to_send
+            print("len data:", len(data))
             if current_socket in wlist:
                 try:
                     current_socket.send(data)
