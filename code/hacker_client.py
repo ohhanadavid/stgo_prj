@@ -73,7 +73,7 @@ CONNECT_TRYNIG = 10
 SENDIN_DICT = dict()
 EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a']
 IMAGE_TYPE = [JpegImageFile.__name__, PngImageFile.__name__, GifImageFile.__name__, BmpImageFile.__name__,
-              TiffImageFile.__name__, IcoImageFile.__name__, PhotoImage.__class__.__name__]
+              TiffImageFile.__name__, IcoImageFile.__name__,PhotoImage.__class__.__name__]
 
 
 def find_name(name):
@@ -142,8 +142,7 @@ def send_massage(encode, image):
             return
         type_msg = msg.__class__.__name__
     elif image:
-        img = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(
-        ("Image files", "*.png"), ("Image files", "*.jpg"), ("Image files", "*.jpeg")))
+        img = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(("Image files", "*.png"),("Image files", "*.jpg"),("Image files", "*.jpeg")))
         if img is None or img == "":
             return
         msg = Image.open(img, 'r')
@@ -359,20 +358,19 @@ def getting_msg(data):
         if "date" in data.info.keys():
             data = stego.decode_info(data)
             if data.__class__ is str:
-                output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
-                              OutputType.receive_e.value)
+                output_insert(END,"msg str "+ '\n\r' + sender + " say:\n" '**\n ' + data + ' **', OutputType.receive_e.value)
             else:
                 data = ImageTk.PhotoImage(data)
-                output_insert(END, "msg str " + '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
+                output_insert(END,"msg str "+ '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
                 output_insert(END, data, "")
 
         else:
 
-            output_insert(END, "msg str " + '\n\r' + sender + " send:\n", OutputType.receive_e.value)
+            output_insert(END,"msg str "+ '\n\r' + sender + " send:\n", OutputType.receive_e.value)
             output_insert(END, data, "")
 
     else:
-        output_insert(END, "msg str " + '\n\r' + sender + '\n\r' + data, OutputType.receive.value)
+        output_insert(END, "msg str "+'\n\r' + sender + '\n\r' + data, OutputType.receive.value)
 
 
 def ans(cmd, data):
@@ -406,7 +404,7 @@ def ans(cmd, data):
 
 def output_insert(start, data, color):
     global INDEX
-    # data=data.split(" ",1)[1]
+    #data=data.split(" ",1)[1]
     with text_output_lock:
         text_output.config(state=NORMAL)
         if data.__class__ is str:
@@ -474,7 +472,7 @@ def insert_image(data, start):
     elif data is not ImageTk.PhotoImage.__class__:
         HISTORY[INDEX] = ImageTk.PhotoImage(data)
     else:
-        HISTORY[INDEX] = data
+        HISTORY[INDEX] =data
 
     text_output.image_create(start, image=HISTORY[INDEX])
     text_output.insert(END, '\n')
@@ -603,7 +601,7 @@ def main1():
             for message in messages_to_write:
                 to_input, data, encrypt, msg_e = message
                 if my_socket in wlist:
-                    print("len data:", len(data))
+                    print("len data:",len(data))
                     for m in create_msg(data):
                         print("len a:", len(m))
                         my_socket.send(m)
@@ -688,34 +686,18 @@ def main():
 
     ip = ip_from_user()
 
-    # my_socket.connect((ip, PORT))
+    my_socket.connect((ip, PORT))
 
     if text_output_lock.locked():
         text_output_lock.release()
     if massage_list_lock.locked():
         massage_list_lock.release()
     window = Tk()
-    window.geometry('840x550')
-    frame = Frame(window)
-    frame.pack(fill=BOTH, expand=1)
-
-    canvas_window = Canvas(frame)
-    canvas_window.pack(side=LEFT, fill=BOTH, expand=1)
-
-    scrollerbar_window = Scrollbar(frame, orient=VERTICAL, command=canvas_window.yview)
-    scrollerbar_window.pack(side=RIGHT, fill=Y)
-
-    canvas_window.configure(yscrollcommand=scrollerbar_window.set)
-    canvas_window.bind('<Configure>', lambda e: canvas_window.configure(scrollregion=canvas_window.bbox("all")))
-
-    frame2 = Frame(canvas_window)
-    canvas_window.create_window((0, 0), window=frame2, anchor="nw")
 
     window.title("Chat APP")
-
-    text_input_to = Entry(frame2, width=100)
-    text_input_massage = Text(frame2, width=100, height=3)
-    text_output = tkinter.scrolledtext.ScrolledText(frame2, width=100, height=20)
+    text_input_to = Entry(window, width=100)
+    text_input_massage = Text(window, width=100, height=3)
+    text_output = tkinter.scrolledtext.ScrolledText(window, width=100, height=20)
 
     text_output.config(state=DISABLED)
     text_output.tag_config(OutputType.receive.value, foreground="#ff6800")
@@ -725,9 +707,9 @@ def main():
     text_output.tag_config(OutputType.system_info.value, foreground="black")
     text_output.tag_config(OutputType.server_ans.value, foreground="#585858")
     text_output.tag_config(OutputType.error_msg.value, foreground="red")
-    label_error = Label(frame2, foreground="red")
-    label_to = Label(frame2, text="To:", height=1, width=3, compound="left")
-    label_msg = Label(frame2, text="Massage:", height=1, width=8, compound="left")
+    label_error = Label(window, foreground="red")
+    label_to = Label(window, text="To:", height=1, width=3, compound="left")
+    label_msg = Label(window, text="Massage:", height=1, width=8, compound="left")
 
     client_loop = threading.Thread(target=main1)
 
@@ -744,39 +726,39 @@ def main():
 
     get_name_thred = threading.Thread(target=get_name)
 
-    create_group_button = Button(frame2, text="crate group", command=lambda: call_open_group(open_group_thred))
-    my_contest_info_button = Button(frame2, text="phon book",
+    create_group_button = Button(window, text="crate group", command=lambda: call_open_group(open_group_thred))
+    my_contest_info_button = Button(window, text="phon book",
                                     command=lambda: call_get_contect_info(get_contect_info_thred))
-    get_all_names_button = Button(frame2, text="names by server", command=lambda: call_get_names(get_names_thred))
-    my_name_button = Button(frame2, text="change my name", command=lambda: call_change_name(change_name_thred))
-    add_people_button = Button(frame2, text="add people", command=lambda: call_add_people(add_people_thred))
+    get_all_names_button = Button(window, text="names by server", command=lambda: call_get_names(get_names_thred))
+    my_name_button = Button(window, text="change my name", command=lambda: call_change_name(change_name_thred))
+    add_people_button = Button(window, text="add people", command=lambda: call_add_people(add_people_thred))
 
-    send_msg_button = Button(frame2, text="send", command=lambda: call_send_massage(send_massage_thred_s))
+    send_msg_button = Button(window, text="send", command=lambda: call_send_massage(send_massage_thred_s))
 
-    send_encrypt_msg_button = Button(frame2, text="send encrypt",
+    send_encrypt_msg_button = Button(window, text="send encrypt",
                                      command=lambda: call_send_massage_e(send_massage_thred_se))
-    send_image_button = Button(frame2, text="send Image", command=lambda: call_send_image(send_massage_thred_i))
-    send_encrypt_image_button = Button(frame2, text="send encrypted Image",
+    send_image_button = Button(window, text="send Image", command=lambda: call_send_image(send_massage_thred_i))
+    send_encrypt_image_button = Button(window, text="send encrypted Image",
                                        command=lambda: call_send_image_e(send_massage_thred_ie))
-    get_name_button = Button(frame2, text="get name", command=lambda: call_get_name(get_name_thred))
+    get_name_button = Button(window, text="get name", command=lambda: call_get_name(get_name_thred))
 
-    create_group_button.grid(row=0, column=0)
-    add_people_button.grid(row=0, column=1)
-    my_contest_info_button.grid(row=0, column=2)
-    get_all_names_button.grid(row=0, column=3)
-    get_name_button.grid(row=0, column=4)
-    my_name_button.grid(row=0, column=5)
-    text_output.grid(row=1, column=0, columnspan=6)
+    create_group_button.pack()
+    add_people_button.pack()
+    my_contest_info_button.pack()
+    get_all_names_button.pack()
+    get_name_button.pack()
+    my_name_button.pack()
+    text_output.pack()
 
-    label_to.grid(row=2, column=0, columnspan=6)
-    text_input_to.grid(row=3, column=0, columnspan=6)
-    label_error.grid(row=4, column=0, columnspan=6)
-    label_msg.grid(row=5, column=0, columnspan=6)
-    text_input_massage.grid(row=6, column=0, columnspan=6)
-    send_msg_button.grid(row=7, column=1)
-    send_encrypt_msg_button.grid(row=7, column=2)
-    send_image_button.grid(row=7, column=3)
-    send_encrypt_image_button.grid(row=7, column=4)
+    label_to.pack()
+    text_input_to.pack()
+    label_error.pack()
+    label_msg.pack()
+    text_input_massage.pack()
+    send_msg_button.pack()
+    send_encrypt_msg_button.pack()
+    send_image_button.pack()
+    send_encrypt_image_button.pack()
 
     open_group_thred.daemon = True
     get_contect_info_thred.daemon = True

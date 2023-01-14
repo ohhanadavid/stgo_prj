@@ -228,7 +228,10 @@ def check_cmd(cmd, data, client_socket):
 def main():
     print("Setting up server...")
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    hacker_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((SERVER_IP, PORT))
+    hacker_server.bind((SERVER_IP, 5))
+    hacker_server.listen()
     server_socket.listen()
     print("Listening for clients...")
     recv_thread = threading.Thread(target=recev_socket, args=(server_socket,))
