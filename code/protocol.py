@@ -10,10 +10,11 @@
 import base64
 import json
 import pickle
+import random
 import threading
 import time
 import stego
-
+import hashlib
 from PIL import Image
 
 LENGTH_FIELD_SIZE = 9
@@ -25,6 +26,11 @@ EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a']
 DATA_DICT = dict()
 DATA_DICT_LOCK = threading.Lock()
 RECVE_LOCK = threading.Lock()
+INTEGRITY_DICT = dict()
+INTEGRITY_LOCK = threading.Lock()
+MAX_HASH = 64
+integrity_ = hashlib.sha3_512
+RANDOM_ID = 999999
 
 
 def create_msg(data):
@@ -34,7 +40,18 @@ def create_msg(data):
     if len(data) >= 10 ** LENGTH_FIELD_SIZE:
         return (str.zfill(str(len(LENGTH_FIELD_SIZE_STR_ERROR)),
                           LENGTH_FIELD_SIZE) + LENGTH_FIELD_SIZE_STR_ERROR).encode()
-    return (str.zfill(str(len(data)), LENGTH_FIELD_SIZE) + data).encode()
+    data = data.encode()
+    with INTEGRITY_LOCK:
+
+        integrity_data = integrity_(data).hexdigest().encode()
+
+        id = str.zfill(random.randint(1, RANDOM_ID).__str__(), len(RANDOM_ID.__str__())).encode()
+        print(id)
+        data = id + b"_msg " + data
+        integrity_data = id + b"_hash " + integrity_data
+        data = (str.zfill(str(len(data)), LENGTH_FIELD_SIZE)).encode() + data
+        integrity_data = (str.zfill(str(len(integrity_data)), LENGTH_FIELD_SIZE)).encode() + integrity_data
+    return data, integrity_data
 
 
 def get_msg(my_socket):
@@ -53,7 +70,7 @@ def get_msg(my_socket):
                     while count < data_length:
                         try:
                             r = ""
-                            r = my_socket.recv(181935040)
+                            r = my_socket.recv(data_length)
                             print("r", len(r))
                             data += r.decode()
                             count += len(r)
@@ -68,6 +85,34 @@ def get_msg(my_socket):
                         count += 1048576
                         data += my_socket.recv(1048576).decode()
                 finally:
+                    integrity = data.split(" ", 1)
+                    data = integrity[1]
+                    integrity = integrity[0]
+                    integrity = integrity.split("_", 1)
+                    integrity_type = integrity[1]
+                    integrity = integrity[0]
+                    with INTEGRITY_LOCK:
+                        if integrity in INTEGRITY_DICT.keys():
+                            if INTEGRITY_DICT[integrity][0] == "msg":
+                                data_save = INTEGRITY_DICT[integrity][1].encode()
+                                integrity_data = integrity_(data_save).hexdigest()
+
+                                if integrity_data != data:
+                                    return False, None, "ERROR: samone change your msg "
+                                data = data_save.decode()
+                                INTEGRITY_DICT.pop(integrity)
+
+                            elif INTEGRITY_DICT[integrity][0] == "hash":
+                                data_save = INTEGRITY_DICT[integrity][1]
+                                integrity_data = integrity_(data).hexdigest()
+
+                                if data_save != integrity_data:
+                                    return False, None, "ERROR: samone change your msg "
+                                INTEGRITY_DICT.pop(integrity)
+                        else:
+                            INTEGRITY_DICT[integrity] = (integrity_type, data)
+                            return True, "waiting", None
+
                     """tansaction = tuple(data.split(" ", 2))
                     transaction, count, data = tansaction
                     count = int(count)

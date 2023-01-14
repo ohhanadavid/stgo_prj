@@ -142,7 +142,7 @@ def send_massage(encode, image):
             return
         type_msg = msg.__class__.__name__
     elif image:
-        img = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(("Image files", "*.png"),))
+        img = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(("Image files", "*.png"),("Image files", "*.jpg"),("Image files", "*.jpeg")))
         if img is None or img == "":
             return
         msg = Image.open(img, 'r')
@@ -169,7 +169,8 @@ def send_massage(encode, image):
     for i in to_input:
         if i in CONTECT_MENU.keys():
             send_to.add(CONTECT_MENU[i])
-        send_to.add(i)
+        else:
+            send_to.add(i)
     msg = " " + msg
     """"# transaction_id = time.localtime()
     # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
@@ -403,6 +404,7 @@ def ans(cmd, data):
 
 def output_insert(start, data, color):
     global INDEX
+    #data=data.split(" ",1)[1]
     with text_output_lock:
         text_output.config(state=NORMAL)
         if data.__class__ is str:
@@ -489,8 +491,8 @@ def recv_socket():
 
                 else:
                     try:
-
-                        my_socket.send(create_msg("There is no length field!"))
+                        for m in create_msg("There is no length field!"):
+                            my_socket.send(m)
                         my_socket.recv(1024)
                     except ConnectionAbortedError:
                         for i in range(CONNECT_TRYNIG):
@@ -529,7 +531,8 @@ def send_socket():
             for message in messages_to_write:
                 to_input, data, encrypt, msg_e = message
                 if my_socket in wlist:
-                    my_socket.send(create_msg(data))
+                    for m in create_msg(data):
+                        my_socket.send(m)
                     if encrypt is OutputType.sending:
                         # out = data.split(" ", 2)
                         # if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:
@@ -581,7 +584,8 @@ def main1():
 
                 else:
                     try:
-                        my_socket.send(create_msg("There is no length field!"))
+                        for m in create_msg("There is no length field!"):
+                            my_socket.send(m)
                         my_socket.recv(1024)
                     except ConnectionAbortedError:
                         for i in range(CONNECT_TRYNIG):
@@ -598,9 +602,9 @@ def main1():
                 to_input, data, encrypt, msg_e = message
                 if my_socket in wlist:
                     print("len data:",len(data))
-                    a=create_msg(data)
-                    print("len a:", len(a))
-                    my_socket.send(a)
+                    for m in create_msg(data):
+                        print("len a:", len(m))
+                        my_socket.send(m)
                     if encrypt is OutputType.sending:
                         out = data.split(" ", 2)
                         # if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:

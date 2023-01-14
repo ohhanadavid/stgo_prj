@@ -97,6 +97,7 @@ def encode_enc(newimg, datalist, lendata, codex, primeh, primem):
                     end.end_data = False
                     end.end_word = True
                 count = 0
+
             pixel = mod_pix(newimg.getpixel((x, y))[:3], se, end)
             newimg.putpixel((x, y), pixel)
     return newimg
@@ -231,7 +232,7 @@ def decode_image(image):
                 xy.append(ord(c.__next__()))
             except StopIteration:
                 s += 1
-                if s > pdf_file.numPages:
+                if s > len(pdf_file.pages):
                     if num_book + 1 < len(books):
                         num_book += 1
                     else:
@@ -242,7 +243,7 @@ def decode_image(image):
                     s = 0
 
                 page_obj = pdf_file.pages[s]
-                c = iter(page_obj.extractText())
+                c = iter(page_obj.extract_text())
                 xy.append(ord(c.__next__()))
 
         mxy = xy[0] * xy[1]
@@ -293,8 +294,15 @@ def main():
 
     print(pt.localtime())
 
-    i = Image.open(PATH + r"\\images\\ptt.png", 'r')
-    u = encode_info(pt.localtime(), "aba sabbab fkfgkf", 'dd.png')
+    i = Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\OG-1200x800-jpeg.jpg", 'r')
+    c=i.getpixel((0,0))
+    data = pickle.dumps(i)
+    data = base64.b64encode(data)
+
+
+    data = "".join([format(n, '08b') for n in data])
+    p=len(data)
+    u = encode_info(pt.localtime(), "aba sabbab fkfgkf", r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\OG-1200x800-jpeg.jpg")
 
     print(decode_info(u))
 

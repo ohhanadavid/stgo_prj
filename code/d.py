@@ -1,5 +1,6 @@
 import math
 import msvcrt
+import os
 import threading
 import time
 import tkinter
@@ -14,6 +15,9 @@ import json
 from PIL import Image
 
 import subprocess
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from future.moves import *
 import io
 from tkinter import *
@@ -27,7 +31,149 @@ from PIL.GifImagePlugin import GifImageFile
 from PIL.BmpImagePlugin import BmpImageFile
 from PIL.TiffImagePlugin import TiffImageFile
 from PIL.IcoImagePlugin import IcoImageFile
+import hashlib
+import rsa
+from cryptography.hazmat.primitives import serialization,hashes
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.fernet import Fernet
+key = Fernet.generate_key()
 
+d=hashlib.sha3_512
+
+c=d(b"aba").hexdigest()
+
+i=d(b"aba").hexdigest()
+
+private_key = rsa.generate_private_key(
+    public_exponent=65537,
+    key_size=2048
+)
+
+pem = private_key.private_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PrivateFormat.PKCS8,
+    encryption_algorithm=serialization.NoEncryption()
+)
+
+public_key = private_key.public_key()
+
+
+pem1 = public_key.public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+)
+ciphertext = public_key.encrypt(
+    key,
+    padding.OAEP(
+        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+        algorithm=hashes.SHA256(),
+        label=None
+    )
+)
+o=open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\d.png", 'rb').read()
+o = Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\d.png", 'r')
+o = pickle.dumps(o)
+o = base64.b64encode(o)
+o = "".join([format(n, '08b') for n in o])
+o=o.encode()
+cipher = Fernet(key)
+ciphertext1 = cipher.encrypt(o)
+print(len(ciphertext1+ciphertext))
+decrypted_key = private_key.decrypt(
+    ciphertext,
+    padding.OAEP(
+        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+        algorithm=hashes.SHA256(),
+        label=None
+    )
+)
+cipher = Fernet(decrypted_key)
+original_data = cipher.decrypt(ciphertext1)
+
+
+
+
+
+cipher = Fernet(key)
+ciphertext = cipher.encrypt(o)
+original_data = cipher.decrypt(ciphertext)
+ciphertext = public_key.encrypt(
+    o,
+    padding.OAEP(
+        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+        algorithm=hashes.SHA256(),
+        label=None
+    )
+)
+
+key = os.urandom(32)
+backend = default_backend()
+cipher = Cipher(algorithms.AES(key), modes.CBC(os.urandom(16)), backend=backend)
+decryptor = cipher.decryptor()
+decrypted_data = decryptor.update(ciphertext) + decryptor.finalize()
+hash_value, image_data = decrypted_data.split(b":")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+o = Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\d.png", 'r')
+o = pickle.dumps(o)
+o = base64.b64encode(o)
+o = "".join([format(n, '08b') for n in o])
+o=o.encode()
+d=hashlib.sha3_512()
+d.update(o)
+d=d.hexdigest()
+
+
+def a(i):
+    t=i+2
+    p=i+5
+    return t,p
+
+for i in a(3):
+    print(i)
+
+
+
+d=hashlib.sha3_512()
+d.update("aba".encode())
+p=d.hexdigest()
+tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(("png", "*.png"),("jpeg", "*.jpg"),("jpeg", "*.jpeg")))
+# Generate a pair of RSA keys
+(pubkey, privkey) = rsa.newkeys(10000)
+
+f='a'*52
+t=rsa.encrypt(f.encode(),pubkey)
+p=pickle.dumps(pubkey)
+o = base64.b64encode(p)
+o = "".join([format(n, '08b') for n in o])
+i=len(o)
+# Encrypt data using the public key
+data = "my secret data".encode()
+encrypted_data = rsa.encrypt(data, pubkey)
+
+# Decrypt the encrypted data using the private key
+decrypted_data = rsa.decrypt(encrypted_data, privkey).decode()
+
+print(decrypted_data) # prints "my secret data"
+
+d=hashlib.sha256(b"aba saba daba")
+p=d.digest()
+
+print(p)
 l=['a','d','b','c']
 l.sort()
 print(l)
