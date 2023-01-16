@@ -141,6 +141,7 @@ def send_massage(encode, image):
         if encode is OutputType.sending_e:
             msg = msg.resize((50, 50))
         if msg.__class__ is GifImageFile:
+            msg = not_encoded_gif(msg)
             buffer = io.BytesIO()
             msg.save(buffer, save_all=True, format="gif")
             msg = buffer.getvalue()
@@ -395,7 +396,7 @@ def getting_msg(data):
                 output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
                               OutputType.receive_e.value)
             else:
-                #data = ImageTk.PhotoImage(data)
+                # data = ImageTk.PhotoImage(data)
                 output_insert(END, "msg str " + '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
                 output_insert(END, data, "")
 
@@ -523,7 +524,7 @@ def insert_image(data, start):
             data = Image.open(io.BytesIO(data))
     if hasattr(data, "resize"):
         size = (int(new_size * (data.size[0] / data.size[1])), int(new_size / (data.size[0] / data.size[1])))
-        data=data.resize(size)
+        data = data.resize(size)
         HISTORY[INDEX] = ImageTk.PhotoImage(data)
     elif hasattr(data, 'config'):
         if hasattr(data.config, 'width') and hasattr(data.config, 'height'):
@@ -577,7 +578,7 @@ def main1():
                             output_insert(END, '\n\r' + m + data,
                                           OutputType.error_msg.value)
                         print("len a:", len(m))
-                        my_socket.sendall(m)
+                        my_socket.send(m)
                     if encrypt is OutputType.sending:
                         out = data.split(" ", 2)
                         # if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:

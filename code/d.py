@@ -36,6 +36,19 @@ import rsa
 from cryptography.hazmat.primitives import serialization,hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.fernet import Fernet
+import PyPDF2
+
+pdf_file_obj = open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\file\1001 Books_ You Must Read Before You Die ( PDFDrive ).pdf", 'rb')
+    # creating a pdf reader object
+codex=""
+pdf_file = PyPDF2.PdfReader(pdf_file_obj)
+for i in range(len(pdf_file.pages)):
+    page_obj= pdf_file.pages[i]
+    codex += page_obj.extract_text()
+
+print(len(codex))
+
+
 
 p=Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\Zz04NjA3ZjljMjQ0ODkxMWViOWRjYzU1OGJkNjI1ZjVkZA==.gif",
             'r')
