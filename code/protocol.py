@@ -31,27 +31,30 @@ INTEGRITY_LOCK = threading.Lock()
 MAX_HASH = 64
 integrity_ = hashlib.sha3_512
 RANDOM_ID = 999999
+ERROR="We can only handle what is in the ASCII table "
 
 
 def create_msg(data):
-    """Create a valid protocol message, with length field"""
-    if not data.isascii():
-        data = "We can only handle what is in the ASCII table "
-    if len(data) >= 10 ** LENGTH_FIELD_SIZE:
-        return (str.zfill(str(len(LENGTH_FIELD_SIZE_STR_ERROR)),
-                          LENGTH_FIELD_SIZE) + LENGTH_FIELD_SIZE_STR_ERROR).encode()
-    data = data.encode()
-    with INTEGRITY_LOCK:
+    try:
+        """Create a valid protocol message, with length field"""
 
-        integrity_data = integrity_(data).hexdigest().encode()
+        if len(data) >= 10 ** LENGTH_FIELD_SIZE:
+            return (str.zfill(str(len(LENGTH_FIELD_SIZE_STR_ERROR)),
+                              LENGTH_FIELD_SIZE) + LENGTH_FIELD_SIZE_STR_ERROR).encode()
+        data = data.encode()
+        with INTEGRITY_LOCK:
 
-        id = str.zfill(random.randint(1, RANDOM_ID).__str__(), len(RANDOM_ID.__str__())).encode()
-        print(id)
-        data = id + b"_msg " + data
-        integrity_data = id + b"_hash " + integrity_data
-        data = (str.zfill(str(len(data)), LENGTH_FIELD_SIZE)).encode() + data
-        integrity_data = (str.zfill(str(len(integrity_data)), LENGTH_FIELD_SIZE)).encode() + integrity_data
-    return data, integrity_data
+            integrity_data = integrity_(data).hexdigest().encode()
+
+            id = str.zfill(random.randint(1, RANDOM_ID).__str__(), len(RANDOM_ID.__str__())).encode()
+            print(id)
+            data = id + b"_msg " + data
+            integrity_data = id + b"_hash " + integrity_data
+            data = (str.zfill(str(len(data)), LENGTH_FIELD_SIZE)).encode() + data
+            integrity_data = (str.zfill(str(len(integrity_data)), LENGTH_FIELD_SIZE)).encode() + integrity_data
+        return data, integrity_data
+    except:
+        return ERROR,""
 
 
 def get_msg(my_socket):
@@ -113,30 +116,7 @@ def get_msg(my_socket):
                             INTEGRITY_DICT[integrity] = (integrity_type, data)
                             return True, "waiting", None
 
-                    """tansaction = tuple(data.split(" ", 2))
-                    transaction, count, data = tansaction
-                    count = int(count)
-                    with DATA_DICT_LOCK:
-                        if transaction in DATA_DICT.keys():
-    
-                            DATA_DICT[transaction][1][count] = data
-                        else:
-                            limit = int(transaction[-3:])
-    
-                            DATA_DICT[transaction] = [limit, dict()]
-                            DATA_DICT[transaction][1][count] = data
-    
-                    if len(DATA_DICT[transaction][1]) == DATA_DICT[transaction][0]:
-                        print("len(DATA_DICT[transaction][1]):", len(DATA_DICT[transaction][1]))
-                        print("DATA_DICT[transaction][0]:", DATA_DICT[transaction][0])
-                        data = ""
-                        with DATA_DICT_LOCK:
-                            for i in range(DATA_DICT[transaction][0]):
-                                data += DATA_DICT[transaction][1][i + 1]
-                            DATA_DICT.pop(transaction)
-                    else:
-                        return True, "waiting", ""
-                    """
+
                     cmd_get = data.split(" ", 1)
                     if len(cmd_get) == 1:
                         return True, cmd_get[0], ""

@@ -36,6 +36,37 @@ import rsa
 from cryptography.hazmat.primitives import serialization,hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.fernet import Fernet
+
+p=Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\Zz04NjA3ZjljMjQ0ODkxMWViOWRjYzU1OGJkNjI1ZjVkZA==.gif",
+            'r')
+b=io.BytesIO()
+p.save(b, save_all=True, format="gif")
+n = b.getvalue().decode('latin-1')
+n=n.encode('latin-1')
+c = io.BytesIO(n)
+a = Image.open(c)
+s="שלום"
+s=s.encode('latin-1')
+s=s.decode('latin-1')
+a="aba".encode('latin-1')
+b=a.decode()
+c=a.decode('latin-1')
+print(a,b,c)
+
+
+d={1:2,3:4,5:6}
+c={1:4,7:1,8:3,9:8}
+d.update(c)
+co=20
+for i in d.items():
+    print(i)
+    d.pop(i[0])
+    d[co]=8
+    co+=1
+
+
+
+
 key = Fernet.generate_key()
 
 d=hashlib.sha3_512

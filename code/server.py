@@ -48,22 +48,13 @@ def get_names(client_socket):
     return al sockets name
     :param client_socket: Which socket to return the answer to
     """
-    list_msg = []
+
     msg = "ans_all " + json.dumps(
         dict(zip(DICTIONARY_SOCKETS.keys(), [i.client_name for i in DICTIONARY_SOCKETS.values()])))
-    # transaction_id = time.localtime()
-    # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-    #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
-    count_msg = 1
+
     for m in create_msg(msg):
         MESSAGES_TO_SEND.append((client_socket, m))
-    # for i in range(0, len(msg), 1048576):
-    #    if i + 1048576 > len(msg):
-    #        list_msg.append(transaction_id + str(count_msg) + " " + msg[i:])
-    #    list_msg.append(transaction_id + str(count_msg) + " " + msg[i:i + 1048576])
-    #    count_msg += 1
-    # for i in list_msg:
-    #    MESSAGES_TO_SEND.append((client_socket, create_msg(i)))
+
 
 
 def closing_client(client_socket):
@@ -73,10 +64,7 @@ def closing_client(client_socket):
     """
     name = find_socket(client_socket)
     msg = "ans_delete " + DICTIONARY_SOCKETS[name].client_name
-    # transaction_id = time.localtime()
-    # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-    #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
-    # delete socket from list
+
     d, i = create_msg(msg)
     for i in DICTIONARY_SOCKETS.keys():
         MESSAGES_TO_SEND.append((DICTIONARY_SOCKETS[i], d))
@@ -98,15 +86,12 @@ def name_setting(client_socket, data):
     :param data:what the name
     """
     name = str
-    # transaction_id = time.localtime()
-    # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-    # transaction_id.tm_sec.real) + "_"
-    # if he got only NAME send is name
+
     if len(data) == 0:
         for i in DICTIONARY_SOCKETS.keys():
             if DICTIONARY_SOCKETS[i].client_socket == client_socket:
                 msg = "ans_name_ " + str(i)
-                # transaction_id += str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
+
                 for m in create_msg(msg):
                     MESSAGES_TO_SEND.append((client_socket, m))
                 return
@@ -114,7 +99,7 @@ def name_setting(client_socket, data):
         name = data
     if name in DICTIONARY_SOCKETS.keys():
         msg = "ans_error_<name" + name + "> " + " this name already exists"
-        # transaction_id += str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
+
         for m in create_msg(msg):
             MESSAGES_TO_SEND.append((client_socket, m))
     else:
@@ -124,7 +109,7 @@ def name_setting(client_socket, data):
                 key = find_socket(client_socket)
                 DICTIONARY_SOCKETS[key].client_name = name
                 msg = "ans_success_<name:" + name + "> "
-                # transaction_id += str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
+
                 for m in create_msg(msg):
                     MESSAGES_TO_SEND.append((client_socket, m))
                 break
@@ -144,9 +129,7 @@ def message(client_socket, data):
     # gen msg commend without destination
     if len(data) == 1:
         msg = "ans_error_<msg>" + " who you want tho send message?"
-        # transaction_id = time.localtime()
-        # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-        #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
+
         for m in create_msg(msg):
             MESSAGES_TO_SEND.append((client_socket, m))
         return
@@ -161,28 +144,12 @@ def message(client_socket, data):
     msg = "msg " + DICTIONARY_SOCKETS[find_socket(client_socket)].client_name + " " + data
     for i in msg_to:
         try:
-            # transaction_id = time.localtime()
-            # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-            #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
-            list_msg = []
-            # print("num tranaction:", str(math.ceil(len(msg) / 1048576)).zfill(3))
-            count_msg = 1
-            # for k in range(0, len(msg), 1048576):
-            #    if k + 1048576 > len(msg):
-            #        list_msg.append(transaction_id + str(count_msg) + " " + msg[k:])
-            #    else:
-            #        list_msg.append(transaction_id + str(count_msg) + " " + msg[k:k + 1048576])
-            #    count_msg += 1
-            # print("len list", len(list_msg))
-            # for k in list_msg:
+
             for m in create_msg(msg):
                 MESSAGES_TO_SEND.append((DICTIONARY_SOCKETS[i].client_socket, m))
         except KeyError:
             msg_error = "ans_error_<msg> " + " no client with " + i + " name"
-            # transaction_id = time.localtime()
-            # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-            #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
-            # destination not found
+
             for m in create_msg(msg_error):
                 MESSAGES_TO_SEND.append((client_socket, m))
 
@@ -192,16 +159,12 @@ def get_name(client_socket, name):
 
     if key is not None:
         msg = "return_name_<" + name + "> " + key
-        # transaction_id = time.localtime()
-        # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-        #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
+
         for m in create_msg(msg):
             MESSAGES_TO_SEND.append((client_socket, m))
     else:
         msg = "ans_error_<name" + name + "> " + " not exists"
-        # transaction_id = time.localtime()
-        # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-        #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
+
         for m in create_msg(msg):
             MESSAGES_TO_SEND.append((client_socket, m))
 
@@ -228,10 +191,10 @@ def check_cmd(cmd, data, client_socket):
 def main():
     print("Setting up server...")
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    hacker_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #hacker_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((SERVER_IP, PORT))
-    hacker_server.bind((SERVER_IP, 5))
-    hacker_server.listen()
+    #hacker_server.bind((SERVER_IP, 5))
+    #hacker_server.listen()
     server_socket.listen()
     print("Listening for clients...")
     recv_thread = threading.Thread(target=recev_socket, args=(server_socket,))

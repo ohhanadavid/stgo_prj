@@ -4,35 +4,24 @@
    Possible client commands defined in protocol.py
 """
 import argparse
-import math
-import pickle
+import socket
+import tkinter.filedialog
 import tkinter.messagebox as messagebox
 import tkinter.scrolledtext
-import tkinter.filedialog
-from tkinter import *
-from PIL import Image, ImageTk
 from enum import Enum
-import socket
+from tkinter import *
 
-from PIL.PngImagePlugin import PngImageFile
-from PIL.JpegImagePlugin import JpegImageFile
-from PIL.GifImagePlugin import GifImageFile
-from PIL.BmpImagePlugin import BmpImageFile
-from PIL.TiffImagePlugin import TiffImageFile
-from PIL.IcoImagePlugin import IcoImageFile
-
-from stego import *
-import threading
 import rsa
-from protocol import *
 import select
-import json
-import time
-import sys
+from PIL import ImageTk
+from PIL.BmpImagePlugin import BmpImageFile
+from PIL.IcoImagePlugin import IcoImageFile
+from PIL.JpegImagePlugin import JpegImageFile
+from PIL.PngImagePlugin import PngImageFile
+from PIL.TiffImagePlugin import TiffImageFile
 
-import multiprocessing
-
-import msvcrt
+from protocol import *
+from stego import *
 
 
 class ContectInfo:
@@ -58,6 +47,7 @@ def ip_from_user():
     return args.ip
 
 
+ip = ip_from_user()
 my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 msg_input = ""
 messages_to_write = []
@@ -71,7 +61,7 @@ text_output_lock = threading.Lock()
 massage_list_lock = threading.Lock()
 CONNECT_TRYNIG = 10
 SENDIN_DICT = dict()
-EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a']
+EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a', " "]
 IMAGE_TYPE = [JpegImageFile.__name__, PngImageFile.__name__, GifImageFile.__name__, BmpImageFile.__name__,
               TiffImageFile.__name__, IcoImageFile.__name__, PhotoImage.__class__.__name__]
 
@@ -143,59 +133,63 @@ def send_massage(encode, image):
         type_msg = msg.__class__.__name__
     elif image:
         img = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(
-        ("Image files", "*.png"), ("Image files", "*.jpg"), ("Image files", "*.jpeg")))
+            ("Image files", "*.png"), ("Image files", "*.jpg"), ("Image files", "*.jpeg"), ("Gif", '*.gif')))
         if img is None or img == "":
             return
         msg = Image.open(img, 'r')
         type_msg = msg.__class__.__name__
         if encode is OutputType.sending_e:
             msg = msg.resize((50, 50))
-        msg = pickle.dumps(msg)
-        msg = base64.b64encode(msg)
-        msg = "".join([format(n, '08b') for n in msg])
+        if msg.__class__ is GifImageFile:
+            buffer = io.BytesIO()
+            msg.save(buffer, save_all=True, format="gif")
+            msg = buffer.getvalue()
+        else:
+            msg = pickle.dumps(msg)
+            msg = base64.b64encode(msg)
+            msg = "".join([format(n, '08b') for n in msg])
         print("len image:", len(msg))
     send_to = set()
     if encode is OutputType.sending_e:
-        msg_e = "msg " + str(send_to) + "str" + " " + msg
-        path_image = tkinter.filedialog.askopenfilename(title="open image", filetypes=(("Image files", "*.png"),))
+        if image:
+            msg_e = "msg " + str(send_to) + type_msg + " " + msg
+        else:
+            msg_e = "msg " + str(send_to) + "str" + " " + msg
+        path_image = tkinter.filedialog.askopenfilename(title="open image", filetypes=(
+            ("Image files", "*.png"), ("Image files", "*.jpg"), ("Image files", "*.jpeg"), ("Gif", '*.gif')))
         if path_image is None or path_image == "":
             return
         encoded_image = encode_info(time.localtime(), msg, path_image)
-        type_msg = encoded_image.__class__.__name__
-        msg = pickle.dumps(encoded_image)
-        msg = base64.b64encode(msg)
-        msg = "".join([format(n, '08b') for n in msg])
+        if encoded_image.__class__ is GifImageFile:
+            type_msg = GifImageFile.__name__
+            buffer = io.BytesIO()
+            encoded_image.save(buffer, format="gif", save_all=True)
+            msg = buffer.getvalue().decode('latin-1')
+        else:
+            type_msg = encoded_image.__class__.__name__
+            msg = pickle.dumps(encoded_image)
+            msg = base64.b64encode(msg)
+            msg = "".join([format(n, '08b') for n in msg])
         print("msg-e:", len(msg))
 
     for i in to_input:
         if i in CONTECT_MENU.keys():
-            send_to.add(CONTECT_MENU[i])
+            contect = CONTECT_MENU[i]
+            if contect.__class__ is set:
+                for k in contect:
+                    send_to.add(k)
+            else:
+                send_to.add(contect)
         else:
             send_to.add(i)
-    msg = " " + msg
-    """"# transaction_id = time.localtime()
-    # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-    #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
-    # print("num transaction:", str(math.ceil(len(msg) / 1048576)).zfill(3))
+    if msg.__class__ is bytes:
+        msg = msg.decode('latin-1')
 
-    list_msg = []
-    count_msg = 1"""
+    msg = " " + msg
+
     msg = "msg " + str(send_to) + type_msg + " " + msg
     send_msg = (to_input, msg, encode, msg_e)
-    """"# for i in range(0, len(msg), 1048576):
-    #    if i + 1048576 > len(msg):
-    #        list_msg.append(transaction_id + str(count_msg) + " " + msg[i:])
-    #    else:
-    #        list_msg.append(transaction_id + str(count_msg) + " " + msg[i:i + 1048576])
-    #        count_msg += 1
-    # print("len list", len(list_msg))
-    # with massage_list_lock:
-    #    SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), ""]
-    #     for i in list_msg:
-    #        send_msg = (to_input, i, encode, msg_e)
 
-    #        SENDIN_DICT[transaction_id][1] += i.split(" ", 2)[2]
-    # massage_list_lock.acquire(blocking=False)"""
     with massage_list_lock:
         messages_to_write.append(send_msg)
     # massage_list_lock.release()
@@ -261,37 +255,52 @@ def open_group():
         if group_name in CONTECT_MENU.keys():
             if not messagebox.askquestion("Info", 'This name already exists, do you want to replace it?'):
                 return
-        peoples = set(str(text_group_people.get(1.0, END)).split(','))
+        peoples = set()
+        for i in text_group_people.curselection():
+            peoples.add(text_group_people.get(i))
         CONTECT_MENU[group_name] = peoples
         group_window.destroy()
 
     group_window = Tk()
     label_error = Label(group_window)
     group_window.title("create group")
+    frame_group = Frame(group_window, width=20, height=30)
+
     text_group_name = Entry(group_window, width=20)
-    text_group_people = Text(group_window, width=20, height=30)
-    ok_button = Button(group_window, text="OK",
-                       command=create_group)
+    text_group_people = Listbox(frame_group, selectmode=MULTIPLE)
+
+    scrollbar = Scrollbar(frame_group, orient="vertical")
+    scrollbar.config(command=text_group_people.yview)
+    text_group_people.config(yscrollcommand=scrollbar.set)
+    scrollbar.pack(side="right", fill="y")
+    text_group_people.pack()
+
+    for i in CONTECT_MENU.keys():
+        text_group_people.insert(END, i)
+
+    ok_button = Button(group_window, text="OK", command=create_group)
     open_group_massage = Label(group_window, text="please enter group name :", width=25, height=1)
     people = Label(group_window, text="please enter contact people spread by , :", width=39, height=1)
     open_group_massage.pack()
     text_group_name.pack()
     people.pack()
     label_error.pack()
-    text_group_people.pack()
+    frame_group.pack()
+    # text_group_people.pack()
     ok_button.pack()
     group_window.mainloop()
 
 
 def get_contect_info():
+    output_insert_system(END, '\n\rPhon BOOK:', OutputType.system_info.value)
     for item in CONTECT_MENU.items():
         if item[1].__class__ is not set:
-            output_insert(END, '\n\r' + item[0] + ': ' + item[1] + ',', OutputType.system_info.value)
+            output_insert_system(END, '\n\r' + item[0] + ': ' + item[1] + ',', OutputType.system_info.value)
 
         else:
-            output_insert(END, '\n\r' + item[0] + ': ', OutputType.system_info.value)
+            output_insert_system(END, '\n\rgroup-' + item[0] + ': \n', OutputType.system_info.value)
 
-            output_insert(END, '\n'.join(item[1]), OutputType.system_info.value)
+            output_insert_system(END, '\n'.join(item[1]), OutputType.system_info.value)
 
 
 def add_people():
@@ -304,22 +313,26 @@ def add_people():
         if name in CONTECT_MENU.keys():
             if not messagebox.askquestion("Info", 'This name already exists, do you want to replace it?'):
                 return
-        person = str(text__people.get())
+        person = str(text__people_by_server.get())
+        if person in CONTECT_MENU.values():
+            key = find_name(person)
+            CONTECT_MENU.pop(key)
         CONTECT_MENU[name] = person
+
         add_window.destroy()
 
     add_window = Tk()
     label_error = Label(add_window)
     add_window.title("create new phone")
     text__name = Entry(add_window, width=20)
-    text__people = Entry(add_window, width=20)
+    text__people_by_server = Entry(add_window, width=20)
     ok_button = Button(add_window, text="OK", command=create_people)
     open_group_massage = Label(add_window, text="please enter  name :", width=25, height=1)
     people = Label(add_window, text="please enter contact know by server:", width=39, height=1)
     open_group_massage.pack()
     text__name.pack()
     people.pack()
-    text__people.pack()
+    text__people_by_server.pack()
     ok_button.pack()
     add_window.mainloop()
 
@@ -327,42 +340,62 @@ def add_people():
 def getting_msg(data):
     data = data.split(" ", 2)
     sender = data[0]
+    for i in CONTECT_MENU.items():
+        if i[1] == sender:
+            sender = i[0]
+
     type_msg = data[1]
     data = data[2]
     i = 0
+    count = 0
     for i in range(len(data)):
         if data[i] in EMPTY_DATA:
+            count += 1
             continue
         else:
             break
-    data = data[i + 1:]
-    f = open("2.txt", 'w')
-    f.write(data)
-    f.close()
+    data = data[count:]
     try:
         if type_msg == Image.__name__ or type_msg in IMAGE_TYPE:
-            print("len", len(data))
-            data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
-            decoded_b64 = base64.b64decode(data)
-            data = pickle.loads(decoded_b64)
+            if type_msg == GifImageFile.__name__:
+                if data.__class__ is not bytes:
+                    data = data.encode('latin-1')
+                data = Image.open(io.BytesIO(data))
+            else:
+                print("len", len(data))
+                data_ = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
+                decoded_b64 = base64.b64decode(data_)
+                data_ = pickle.loads(decoded_b64)
+                data = data_
 
         elif type_msg == str.__name__:
             pass
     except pickle.PickleError as e:
-        print(e)
+        if data.__class__ is not bytes:
+            data = data.encode('latin-1')
+        data = Image.open(io.BytesIO(data))
 
     except ValueError as e:
-        print(e)
+        if data.__class__ is not bytes:
+            data = data.encode('latin-1')
+        data = Image.open(io.BytesIO(data))
     except EOFError as e:
         print(e)
     if data.__class__ is Image or data.__class__.__name__ in IMAGE_TYPE:
-        if "date" in data.info.keys():
-            data = stego.decode_info(data)
+        encode_flag = False
+        if data.__class__ is GifImageFile:
+            encode = decode_info(data)
+            if encode is not None:
+                data = encode
+                encode_flag = True
+        if hasattr(data, "info") or encode_flag:
+            if hasattr(data, "info") and "date" in data.info.keys():
+                data = stego.decode_info(data)
             if data.__class__ is str:
                 output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
                               OutputType.receive_e.value)
             else:
-                data = ImageTk.PhotoImage(data)
+                #data = ImageTk.PhotoImage(data)
                 output_insert(END, "msg str " + '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
                 output_insert(END, data, "")
 
@@ -404,9 +437,22 @@ def ans(cmd, data):
         return
 
 
+def output_insert_system(start, data, color):
+    global INDEX
+
+    with text_output_lock:
+        text_output.config(state=NORMAL)
+        HISTORY[INDEX] = data
+
+        text_output.insert(start, HISTORY[INDEX], color)
+
+        INDEX += 1
+        text_output.config(state=DISABLED)
+
+
 def output_insert(start, data, color):
     global INDEX
-    # data=data.split(" ",1)[1]
+
     with text_output_lock:
         text_output.config(state=NORMAL)
         if data.__class__ is str:
@@ -430,17 +476,21 @@ def output_insert(start, data, color):
                     data = type_msg[1]
                     type_msg = type_msg[0]
 
-            # text_output_lock.acquire(blocking=False)
             if type_msg in IMAGE_TYPE:
                 try:
                     insert_image(data, start)
                 except ValueError:
                     text_output.insert(start, "we cant uplode this file" + '\n', color)
             else:
-                HISTORY[INDEX] = data + '\n'
+                output = data.split("str", 1)
+                if len(output) == 2:
+                    output = output[1]
+                else:
+                    output = output[0]
+                HISTORY[INDEX] = output + '\n'
                 text_output.insert(start, HISTORY[INDEX], color)
 
-            # text_output_lock.release()
+
         elif data.__class__.__name__ in IMAGE_TYPE or data.__class__ is ImageTk.PhotoImage:
 
             insert_image(data, start)
@@ -458,20 +508,29 @@ def insert_image(data, start):
             else:
                 break
         data = data[i:]
-        data = data.split(" ", 1)[1]
-        data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
-        decoded_b64 = base64.b64decode(data)
-        data = pickle.loads(decoded_b64)
-    if hasattr(data, 'resize'):
-        data = data.resize(
-            (int(new_size * (data.size[0] / data.size[1])), int(new_size / (data.size[0] / data.size[1]))))
+        try:
+            bytedata = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
+            decoded_b64 = base64.b64decode(bytedata)
+            bytedata = pickle.loads(decoded_b64)
+            data = bytedata
+        except ValueError:
+            if data.__class__ is not bytes:
+                data = data.encode('latin-1')
+            data = Image.open(io.BytesIO(data))
+        except pickle.UnpicklingError:
+            if data.__class__ is not bytes:
+                data.encode('latin-1')
+            data = Image.open(io.BytesIO(data))
+    if hasattr(data, "resize"):
+        size = (int(new_size * (data.size[0] / data.size[1])), int(new_size / (data.size[0] / data.size[1])))
+        data=data.resize(size)
         HISTORY[INDEX] = ImageTk.PhotoImage(data)
     elif hasattr(data, 'config'):
         if hasattr(data.config, 'width') and hasattr(data.config, 'height'):
             data.config(width=int(new_size * (data.size[0] / data.size[1])),
                         height=int(new_size / (data.size[0] / data.size[1])))
             HISTORY[INDEX] = ImageTk.PhotoImage(data)
-    elif data is not ImageTk.PhotoImage.__class__:
+    elif data.__class__ is not ImageTk.PhotoImage.__class__:
         HISTORY[INDEX] = ImageTk.PhotoImage(data)
     else:
         HISTORY[INDEX] = data
@@ -480,108 +539,17 @@ def insert_image(data, start):
     text_output.insert(END, '\n')
 
 
-def recv_socket():
-    while True:
-        try:
-            my_socket.setblocking(False)
-            rlist, wlist, xlist = select.select([my_socket], [], [])
-            my_socket.setblocking(True)
-            if my_socket in rlist:
-                include_length_field, cmd, data = get_msg(my_socket)
-                if include_length_field:
-                    ans(cmd, data)
-
-                else:
-                    try:
-                        for m in create_msg("There is no length field!"):
-                            my_socket.send(m)
-                        my_socket.recv(1024)
-                    except ConnectionAbortedError:
-                        for i in range(CONNECT_TRYNIG):
-                            try:
-                                my_socket.connect(("127.0.0.1", PORT))
-                                break
-                            except ConnectionResetError:
-                                continue
-                        output_insert(END, "Closing", OutputType.system_info.value)
-                        my_socket.close()
-                        return
-        except KeyboardInterrupt:
-            output_insert(END, "Closing", OutputType.system_info.value)
-            print("Closing\n")
-            my_socket.close()
-            return
-        except ConnectionResetError:
-            for i in range(CONNECT_TRYNIG):
-                try:
-                    my_socket.connect(("127.0.0.1", PORT))
-                    break
-                except ConnectionResetError:
-                    continue
-                except OSError as er:
-                    if er == "OSError: [WinError 10056] A connect request was made on an already connected socket":
-                        pass
-            output_insert(END, "Closing", OutputType.system_info.value)
-            my_socket.close()
-
-
-def send_socket():
-    while True:
-        try:
-
-            rlist, wlist, xlist = select.select([my_socket], [my_socket], [])
-            for message in messages_to_write:
-                to_input, data, encrypt, msg_e = message
-                if my_socket in wlist:
-                    for m in create_msg(data):
-                        my_socket.send(m)
-                    if encrypt is OutputType.sending:
-                        # out = data.split(" ", 2)
-                        # if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:
-                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + data,
-                                      OutputType.sending.value)
-                    elif encrypt is OutputType.sending_e:
-                        # out = data.split(" ", 2)
-                        # if int(out[1]) == SENDIN_DICT[out[0]][0]:
-                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " + data + " **",
-                                      OutputType.sending_e.value)
-
-                    with massage_list_lock:
-                        messages_to_write.remove(message)
-
-                        # massage_list_lock.release()
-                if not window.winfo_exists():
-                    output_insert(END, "Closing", OutputType.system_info.value)
-                    print("Closing\n")
-                    my_socket.close()
-                    return
-        except KeyboardInterrupt:
-            output_insert(END, "Closing", OutputType.system_info.value)
-            print("Closing\n")
-            my_socket.close()
-            return
-        except ConnectionResetError:
-            for i in range(CONNECT_TRYNIG):
-                try:
-                    my_socket.connect(("127.0.0.1", PORT))
-                    break
-                except ConnectionResetError:
-                    continue
-                except OSError as er:
-                    if er == "OSError: [WinError 10056] A connect request was made on an already connected socket":
-                        pass
-            output_insert(END, "Closing", OutputType.system_info.value)
-            my_socket.close()
-
-
 def main1():
     while True:
         try:
+
             rlist, wlist, xlist = select.select([my_socket], [my_socket], [])
 
             if my_socket in rlist:
                 include_length_field, cmd, data = get_msg(my_socket)
                 if include_length_field:
+                    if data is not None:
+                        print("len data r:", len(data))
                     ans(cmd, data)
 
                 else:
@@ -605,8 +573,11 @@ def main1():
                 if my_socket in wlist:
                     print("len data:", len(data))
                     for m in create_msg(data):
+                        if m == ERROR:
+                            output_insert(END, '\n\r' + m + data,
+                                          OutputType.error_msg.value)
                         print("len a:", len(m))
-                        my_socket.send(m)
+                        my_socket.sendall(m)
                     if encrypt is OutputType.sending:
                         out = data.split(" ", 2)
                         # if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:
@@ -633,46 +604,26 @@ def main1():
             my_socket.close()
             return
         except ConnectionResetError:
-            for i in range(CONNECT_TRYNIG):
-                try:
-                    my_socket.connect(("127.0.0.1", PORT))
-                    break
-                except ConnectionResetError:
-                    continue
-                except OSError as er:
-                    if er == "OSError: [WinError 10056] A connect request was made on an already connected socket":
-                        pass
-                    output_insert(END, "Closing", OutputType.system_info.value)
-                    my_socket.close()
+            conction_fail()
+        except ValueError as e:
+            if e.__str__() == "ValueError: file descriptor cannot be a negative integer (-1)":
+                conction_fail()
 
-    recv_thread = threading.Thread(target=recv_socket)
-    send_thread = threading.Thread(target=send_socket)
-    while True:
+
+def conction_fail():
+    for i in range(CONNECT_TRYNIG):
         try:
-            if not recv_thread.is_alive():
-                recv_thread.start()
-        except AssertionError as e:
-            try:
+            time.sleep(3)
+            my_socket.connect(("127.0.0.1", PORT))
+            break
+        except ConnectionResetError:
+            continue
+        except OSError as er:
+            if er == "OSError: [WinError 10056] A connect request was made on an already connected socket":
+                pass
 
-                recv_thread.run()
-            except AttributeError as e:
-
-                recv_thread = threading.Thread(target=recv_socket)
-                recv_thread.run()
-        try:
-            if not send_thread.is_alive():
-                send_thread.start()
-        except AssertionError as e:
-            try:
-                send_thread.run()
-            except AttributeError as e:
-
-                send_thread = threading.Thread(target=send_socket)
-                send_thread.run()
-
-        except IndexError as e:
-            print(e)
-            pass
+            output_insert(END, "Closing", OutputType.system_info.value)
+            my_socket.close()
 
 
 def main():
@@ -686,9 +637,7 @@ def main():
     global massage_list_lock
     global label_error
 
-    ip = ip_from_user()
-
-    # my_socket.connect((ip, PORT))
+    my_socket.connect((ip, PORT))
 
     if text_output_lock.locked():
         text_output_lock.release()
