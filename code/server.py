@@ -1,3 +1,4 @@
+import json
 import socket
 
 import select
@@ -7,6 +8,7 @@ from protocol import *
 SERVER_IP = "0.0.0.0"
 DICTIONARY_SOCKETS = dict()
 MESSAGES_TO_SEND = []
+MESSAGES_ACK = dict()
 MESSAGES_TO_SEND_LOCK = threading.Lock()
 DICTIONARY_SOCKETS_LOCK = threading.Lock()
 
@@ -15,16 +17,18 @@ hacker_server.bind((SERVER_IP, 5))
 hacker_server.listen()
 hacker_socket = socket
 hacker_address = 0
-hacker_list=[]
+hacker_list = []
 
 
 class SocketsInfo:
     client_socket = socket
     client_name = ""
+    client_image = None
 
-    def __init__(self, client_socket, client_name):
+    def __init__(self, client_socket, client_name, image=None):
         self.client_socket = client_socket
         self.client_name = client_name
+        self.client_image = image
 
     def __str__(self):
         return self.client_name
@@ -54,12 +58,13 @@ def get_names(client_socket):
     return al sockets name
     :param client_socket: Which socket to return the answer to
     """
-
-    msg = "ans_all " + json.dumps(
+    ack_number = str(random.randint(100000, 999999))
+    msg = ack_number + " ans_all " + json.dumps(
         dict(zip(DICTIONARY_SOCKETS.keys(), [i.client_name for i in DICTIONARY_SOCKETS.values()])))
 
-    for m in create_msg(msg):
-        MESSAGES_TO_SEND.append((client_socket, m))
+
+    MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, msg)]
+    MESSAGES_TO_SEND.append(ack_number)
 
 
 def closing_client(client_socket):
@@ -70,10 +75,12 @@ def closing_client(client_socket):
     name = find_socket(client_socket)
     msg = "ans_delete " + DICTIONARY_SOCKETS[name].client_name
 
-    d, i = create_msg(msg)
     for i in DICTIONARY_SOCKETS.keys():
-        MESSAGES_TO_SEND.append((DICTIONARY_SOCKETS[i], d))
-        MESSAGES_TO_SEND.append((DICTIONARY_SOCKETS[i], i))
+        ack_number = str(random.randint(100000, 999999))
+
+        MESSAGES_ACK[ack_number] = [Ack.waiting, (DICTIONARY_SOCKETS[i], msg)]
+        MESSAGES_TO_SEND.append(ack_number)
+
     DICTIONARY_SOCKETS.pop(name)
 
     print("Connection " + name + " closed")
@@ -90,39 +97,43 @@ def name_setting(client_socket, data):
     :param client_socket: which socket save name
     :param data:what the name
     """
-    name = str
 
     if len(data) == 0:
         for i in DICTIONARY_SOCKETS.keys():
             if DICTIONARY_SOCKETS[i].client_socket == client_socket:
                 msg = "ans_name_ " + str(i)
+                ack_number = str(random.randint(100000, 999999))
+                MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, ack_number + " " + msg)]
+                MESSAGES_TO_SEND.append(ack_number)
 
-                for m in create_msg(msg):
-                    MESSAGES_TO_SEND.append((client_socket, m))
                 return
     else:
         name = data
     if name in DICTIONARY_SOCKETS.keys():
-        msg = "ans_error_<name" + name + "> " + " this name already exists"
+        ack_number = str(random.randint(100000, 999999))
+        msg = ack_number + " ans_error_<name" + name + "> " + " this name already exists"
 
-        for m in create_msg(msg):
-            MESSAGES_TO_SEND.append((client_socket, m))
+        MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, msg)]
+        MESSAGES_TO_SEND.append(ack_number)
+
     else:
         # if he wants change his name
         for i in DICTIONARY_SOCKETS.values():
             if client_socket == i.client_socket:
                 key = find_socket(client_socket)
                 DICTIONARY_SOCKETS[key].client_name = name
-                msg = "ans_success_<name:" + name + "> "
+                ack_number = str(random.randint(100000, 999999))
+                msg = ack_number + " ans_success_<name:" + name + "> "
 
-                for m in create_msg(msg):
-                    MESSAGES_TO_SEND.append((client_socket, m))
+                MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, msg)]
+                MESSAGES_TO_SEND.append(ack_number)
+
                 break
     for i in DICTIONARY_SOCKETS.keys():
         print(i + ":" + DICTIONARY_SOCKETS[i].client_name)
 
 
-def message(client_socket, data):
+def message(client_socket, data,ack):
     """
     send message to auther clients
 
@@ -135,8 +146,10 @@ def message(client_socket, data):
     if len(data) == 1:
         msg = "ans_error_<msg>" + " who you want tho send message?"
 
-        for m in create_msg(msg):
-            MESSAGES_TO_SEND.append((client_socket, m))
+        ack_number = str(random.randint(100000, 999999))
+        MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, msg)]
+        MESSAGES_TO_SEND.append(ack_number)
+
         return
     data[0] += '}'
     msg_to = eval(data[0])
@@ -146,35 +159,49 @@ def message(client_socket, data):
         data = '" "'
     print("data", len(data))
     # looking for destination
-    msg = "msg " + DICTIONARY_SOCKETS[find_socket(client_socket)].client_name + " " + data
+    msg = ack + " msg " + DICTIONARY_SOCKETS[find_socket(client_socket)].client_name + " " + data
     for i in msg_to:
         try:
 
-            for m in create_msg(msg):
-                MESSAGES_TO_SEND.append((DICTIONARY_SOCKETS[i].client_socket, m))
+            ack_number = str(random.randint(100000, 999999))
+            MESSAGES_ACK[ack_number] = [Ack.transport, (client_socket, msg)]
+            MESSAGES_TO_SEND.append(ack_number)
+
         except KeyError:
             msg_error = "ans_error_<msg> " + " no client with " + i + " name"
 
-            for m in create_msg(msg_error):
-                MESSAGES_TO_SEND.append((client_socket, m))
+            ack_number = str(random.randint(100000, 999999))
+            MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, msg_error)]
+            MESSAGES_TO_SEND.append(ack_number)
 
 
 def get_name(client_socket, name):
     key = find_name(name)
 
     if key is not None:
-        msg = "return_name_<" + name + "> " + key
+        msg = "return_name_<" + name + "> " + key + " "
+        ack_number = str(random.randint(100000, 999999))
+        MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, msg)]
+        MESSAGES_TO_SEND.append(ack_number)
 
-        for m in create_msg(msg):
-            MESSAGES_TO_SEND.append((client_socket, m))
     else:
         msg = "ans_error_<name" + name + "> " + " not exists"
+        ack_number = str(random.randint(100000, 999999))
+        MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, msg)]
+        MESSAGES_TO_SEND.append(ack_number)
 
-        for m in create_msg(msg):
-            MESSAGES_TO_SEND.append((client_socket, m))
+
+def ack_recev(ack, cmd, data):
+    try:
+        client_socket = DICTIONARY_SOCKETS[data].client_socket
+    except KeyError:
+        return
+    ack_number = str(random.randint(100000, 999999))
+    MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, ack + " " + cmd)]
+    MESSAGES_TO_SEND.append(ack_number)
 
 
-def check_cmd(cmd, data, client_socket):
+def check_cmd(ack, cmd, data, client_socket):
     cmd = cmd.lower()
     if cmd == "get_names":
         get_names(client_socket)
@@ -185,12 +212,15 @@ def check_cmd(cmd, data, client_socket):
     elif cmd == "name":
         name_setting(client_socket, data)
     elif cmd == "msg":
-        message(client_socket, data)
+        message(client_socket, data,ack)
     elif cmd == "waiting":
         return
+    elif "ack" in cmd:
+        ack_recev(ack, cmd, data)
     else:
-        for m in create_msg("Invalid command, please enter NAME,MSG,GET_NAMES or EXIT"):
-            MESSAGES_TO_SEND.append((client_socket, m))
+        ack_number = str(random.randint(100000, 999999))
+        MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, "Invalid command")]
+        MESSAGES_TO_SEND.append(ack_number)
 
 
 def main():
@@ -245,20 +275,10 @@ def hacker_methode_recive(data):
     except OSError as e:
         hacker_server.close()
         hacker_list = []
-def hacker_methode_send(data):
-    global hacker_list
-    try:
 
-        hacker_socket.send(data)
-    except ConnectionAbortedError:
-        hacker_server.close()
-        hacker_list=[]
-    except ConnectionResetError:
-        hacker_server.close()
-        hacker_list = []
-    except OSError as e:
-        hacker_list = []
-        hacker_server.close()
+
+
+
 
 def send_method():
     global hacker_server
@@ -268,27 +288,35 @@ def send_method():
             sockets = list(map(lambda item: item.client_socket, DICTIONARY_SOCKETS.values()))
         if not sockets:
             continue
-        rlist, wlist, xlist = select.select([], sockets+hacker_list, [])
+        rlist, wlist, xlist = select.select([], sockets + hacker_list, [])
         for message_to_send in MESSAGES_TO_SEND:
-            current_socket, data = message_to_send
-            print("len data:", len(data))
-            if current_socket in wlist:
-                try:
-                    current_socket.send(data)
-                    if hacker_socket in wlist:
-                        hacker_methode_send(data)
-                except ConnectionAbortedError:
-                    closing_client(current_socket)
-                except ConnectionResetError:
+            if MESSAGES_ACK[message_to_send][0] is Ack.waiting or MESSAGES_ACK[message_to_send][0] is Ack.bad or \
+                    MESSAGES_ACK[message_to_send][0] is Ack.ack or MESSAGES_ACK[message_to_send][0] is Ack.transport:
+                current_socket, data = MESSAGES_ACK[message_to_send][1]
+                print("len data:", len(data))
+                if current_socket in wlist:
                     try:
+                        for m in create_msg(data):
+                            current_socket.send(m)
+
+                        if hacker_socket in wlist:
+                            hacker_methode_recive(data)
+                        if MESSAGES_ACK[message_to_send][0] is Ack.ack or MESSAGES_ACK[message_to_send][0] is Ack.transport:
+                            MESSAGES_ACK.pop(message_to_send)
+                        else:
+                            MESSAGES_ACK[message_to_send][0] = Ack.send
+                    except ConnectionAbortedError:
                         closing_client(current_socket)
-                    except KeyError:
-                        pass
-                except OSError as e:
-                    if e.__str__() in "OSError: [WinError 10038] An operation was attempted on something that is not a socket":
-                        closing_client(current_socket)
-            with MESSAGES_TO_SEND_LOCK:
-                MESSAGES_TO_SEND.remove(message_to_send)
+                    except ConnectionResetError:
+                        try:
+                            closing_client(current_socket)
+                        except KeyError:
+                            pass
+                    except OSError as e:
+                        if e.__str__() in "OSError: [WinError 10038] An operation was attempted on something that is not a socket":
+                            closing_client(current_socket)
+                with MESSAGES_TO_SEND_LOCK:
+                    MESSAGES_TO_SEND.remove(message_to_send)
 
 
 def recev_socket(server_socket):
@@ -314,14 +342,14 @@ def recev_socket(server_socket):
             else:
                 flag = bool
                 data = str
-                to_msg = ""
                 cmd = ""
+                ack = ""
                 try:
-                    flag, cmd, data = get_msg(current_socket)
+                    flag, ack, cmd, data = get_msg(current_socket)
                     if hacker_socket in wlist:
                         if data is None:
-                            data=""
-                        hacker_methode_recive(cmd + data)
+                            data = ""
+                        hacker_methode_recive(ack+" "+cmd +" "+ data)
                 except ConnectionResetError:
                     with DICTIONARY_SOCKETS_LOCK:
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))
@@ -330,7 +358,7 @@ def recev_socket(server_socket):
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))
 
                 if flag:
-                    check_cmd(cmd, data, current_socket)
+                    check_cmd(ack, cmd, data, current_socket)
                 else:
                     # if client fall by ctrl+c
                     if data == "":

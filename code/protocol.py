@@ -7,15 +7,10 @@
    TIME - server should reply with time and date
    EXIT - server should send acknowledge and quit
 """
-import base64
-import json
-import pickle
+import hashlib
 import random
 import threading
-import time
-import stego
-import hashlib
-from PIL import Image
+from enum import Enum
 
 LENGTH_FIELD_SIZE = 9
 PORT = 8820
@@ -31,7 +26,16 @@ INTEGRITY_LOCK = threading.Lock()
 MAX_HASH = 64
 integrity_ = hashlib.sha3_512
 RANDOM_ID = 999999
-ERROR="We can only handle what is in the ASCII table "
+ERROR = "We can only handle what is in the ASCII table "
+
+
+class Ack(Enum):
+    waiting = 0
+    send = 1
+    bad = 2
+    ack = 3
+    server=4
+    transport=5
 
 
 def create_msg(data):
@@ -54,7 +58,7 @@ def create_msg(data):
             integrity_data = (str.zfill(str(len(integrity_data)), LENGTH_FIELD_SIZE)).encode() + integrity_data
         return data, integrity_data
     except:
-        return ERROR,""
+        return ERROR, ""
 
 
 def get_msg(my_socket):
@@ -101,7 +105,7 @@ def get_msg(my_socket):
                                 integrity_data = integrity_(data_save).hexdigest()
 
                                 if integrity_data != data:
-                                    return False, None, "ERROR: samone change your msg "
+                                    return False,"", None, "ERROR: samone change your msg "
                                 data = data_save.decode()
                                 INTEGRITY_DICT.pop(integrity)
 
@@ -110,18 +114,17 @@ def get_msg(my_socket):
                                 integrity_data = integrity_(data).hexdigest()
 
                                 if data_save != integrity_data:
-                                    return False, None, "ERROR: samone change your msg "
+                                    return False,"", None, "ERROR: samone change your msg "
                                 INTEGRITY_DICT.pop(integrity)
                         else:
                             INTEGRITY_DICT[integrity] = (integrity_type, data)
-                            return True, "waiting", None
+                            return True,"", "waiting", None
 
-
-                    cmd_get = data.split(" ", 1)
-                    if len(cmd_get) == 1:
-                        return True, cmd_get[0], ""
+                    cmd_get = data.split(" ", 2)
+                    if len(cmd_get) == 2:
+                        return True, cmd_get[0], cmd_get[1], ""
                     else:
-                        return True, cmd_get[0], cmd_get[1]
+                        return True, cmd_get[0], cmd_get[1], cmd_get[2]
 
 
             else:

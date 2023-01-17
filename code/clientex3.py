@@ -4,14 +4,13 @@
    Possible client commands defined in protocol.py
 """
 import argparse
+import json
 import socket
 import tkinter.filedialog
 import tkinter.messagebox as messagebox
 import tkinter.scrolledtext
-from enum import Enum
 from tkinter import *
 
-import rsa
 import select
 from PIL import ImageTk
 from PIL.BmpImagePlugin import BmpImageFile
@@ -20,14 +19,19 @@ from PIL.JpegImagePlugin import JpegImageFile
 from PIL.PngImagePlugin import PngImageFile
 from PIL.TiffImagePlugin import TiffImageFile
 
+import stego
 from protocol import *
 from stego import *
 
 
 class ContectInfo:
     name = ""
-    picther = Image
-    public_key = rsa.PublicKey
+
+    def __init__(self, name=""):
+        self.name = name
+
+    def __str__(self):
+        return self.name
 
 
 class OutputType(Enum):
@@ -51,6 +55,7 @@ ip = ip_from_user()
 my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 msg_input = ""
 messages_to_write = []
+messages_ack = dict()
 HISTORY = dict()
 INDEX = 0
 CONTECT_MENU = dict()
@@ -68,7 +73,7 @@ IMAGE_TYPE = [JpegImageFile.__name__, PngImageFile.__name__, GifImageFile.__name
 
 def find_name(name):
     for i in CONTECT_MENU.keys():
-        if CONTECT_MENU[i] == name:
+        if CONTECT_MENU[i].name == name:
             return i
     return None
 
@@ -83,15 +88,13 @@ def get_name():
         if msg in CONTECT_MENU.keys():
             msg = CONTECT_MENU[msg]
         with massage_list_lock:
+            ack_number = str(random.randint(100000, 999999))
             # massage_list_lock.acquire(blocking=False)
-            msg = "get_name " + msg
-            transaction_id = time.localtime()
-            transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-                transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " " + str(1) + " "
-            SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), msg]
-            messages_to_write.append(("", transaction_id + msg, OutputType.sending, ""))
+            msg = " get_name " + msg
+            messages_ack[ack_number] = [Ack.waiting, ("", msg, OutputType.sending, "")]
+            messages_to_write.append(ack_number)
             # massage_list_lock.release()
-        get_name_text.destroy()
+        get_name_window.destroy()
 
     get_name_window = Tk()
     label_error = Label(get_name_window)
@@ -187,12 +190,13 @@ def send_massage(encode, image):
         msg = msg.decode('latin-1')
 
     msg = " " + msg
-
-    msg = "msg " + str(send_to) + type_msg + " " + msg
+    ack_number = str(random.randint(100000, 999999))
+    msg = ack_number + " msg " + str(send_to) + type_msg + " " + msg
     send_msg = (to_input, msg, encode, msg_e)
 
     with massage_list_lock:
-        messages_to_write.append(send_msg)
+        messages_to_write.append(ack_number)
+        messages_ack[ack_number] = [Ack.waiting, send_msg]
     # massage_list_lock.release()
     text_input_to.delete(0, END)
     text_input_massage.delete(1.0, END)
@@ -201,42 +205,39 @@ def send_massage(encode, image):
 
 def get_names():
     with massage_list_lock:
-        msg = "get_names"
-        messages_to_write.append(("", msg, OutputType.sending, ""))
-        # massage_list_lock.acquire(blocking=False)
-        # transaction_id = time.localtime()
-        # = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-        #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(msg) / 1048576)).zfill(3) + " "
-        # SENDIN_DICT[transaction_id] = [math.ceil(len(msg) / 1048576), msg]
-        # messages_to_write.append(("", transaction_id + str(1) + " " + msg, OutputType.sending, ""))
-        # massage_list_lock.release()
+        ack_number = str(random.randint(100000, 999999))
+        msg = " get_names"
+        messages_ack[ack_number] = [Ack.waiting, ("", msg, OutputType.sending, "")]
+        messages_to_write.append(ack_number)
 
 
 def change_name():
-    def change_name_action():
+    im_p = Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\profil.png", 'r')
+
+    def change_name_action(im_p):
         new_name = str(text_new_name.get())
         for i in new_name:
             if i in BLACK_LIST_SIMBOLD:
                 label_error.configure(text="name contect cant include [,],{,}!")
                 return
-        new_name = "name " + new_name
-        send_msg = ("", new_name, OutputType.sending, "")
-        # transaction_id = time.localtime()
-        # transaction_id = str(transaction_id.tm_hour.real) + str(transaction_id.tm_min.real) + str(
-        #    transaction_id.tm_sec.real) + "_" + str(math.ceil(len(new_name) / 1048576)).zfill(3) + " "
-        # send_msg = ("", transaction_id + str(1) + " " + new_name, OutputType.sending, "")
+        new_name = " name " + new_name
+
         with massage_list_lock:
-            # massage_list_lock.acquire(blocking=False)
-            #    SENDIN_DICT[transaction_id] = [math.ceil(len(new_name) / 1048576), new_name]
-            messages_to_write.append(send_msg)
-            # massage_list_lock.release()
+
+            ack_number = str(random.randint(100000, 999999))
+
+            send_msg = ("", new_name, OutputType.sending, "")
+            messages_ack[ack_number] = [Ack.waiting, send_msg]
+            messages_to_write.append(ack_number)
+
         new_name_win.destroy()
 
     new_name_win = Tk()
     label_error = Label(new_name_win)
     new_name_win.title("create name")
     text_new_name = Entry(new_name_win, width=20)
-    ok_button = Button(new_name_win, text="OK", command=change_name_action)
+
+    ok_button = Button(new_name_win, text="OK", command=lambda: change_name_action(im_p))
     new_name_massage = Label(new_name_win, text="please enter new  name :", width=25, height=1)
     new_name_massage.pack()
     text_new_name.pack()
@@ -338,7 +339,7 @@ def add_people():
     add_window.mainloop()
 
 
-def getting_msg(data):
+def getting_msg(ack, data):
     data = data.split(" ", 2)
     sender = data[0]
     for i in CONTECT_MENU.items():
@@ -349,69 +350,95 @@ def getting_msg(data):
     data = data[2]
     i = 0
     count = 0
-    for i in range(len(data)):
-        if data[i] in EMPTY_DATA:
-            count += 1
-            continue
-        else:
-            break
-    data = data[count:]
     try:
-        if type_msg == Image.__name__ or type_msg in IMAGE_TYPE:
-            if type_msg == GifImageFile.__name__:
-                if data.__class__ is not bytes:
-                    data = data.encode('latin-1')
-                data = Image.open(io.BytesIO(data))
-            else:
-                print("len", len(data))
-                data_ = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
-                decoded_b64 = base64.b64decode(data_)
-                data_ = pickle.loads(decoded_b64)
-                data = data_
 
-        elif type_msg == str.__name__:
-            pass
-    except pickle.PickleError as e:
-        if data.__class__ is not bytes:
-            data = data.encode('latin-1')
-        data = Image.open(io.BytesIO(data))
-
-    except ValueError as e:
-        if data.__class__ is not bytes:
-            data = data.encode('latin-1')
-        data = Image.open(io.BytesIO(data))
-    except EOFError as e:
-        print(e)
-    if data.__class__ is Image or data.__class__.__name__ in IMAGE_TYPE:
-        encode_flag = False
-        if data.__class__ is GifImageFile:
-            encode = decode_info(data)
-            if encode is not None:
-                data = encode
-                encode_flag = True
-        if hasattr(data, "info") or encode_flag:
-            if hasattr(data, "info") and "date" in data.info.keys():
-                data = stego.decode_info(data)
-            if data.__class__ is str:
-                output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
-                              OutputType.receive_e.value)
+        for i in range(len(data)):
+            if data[i] in EMPTY_DATA:
+                count += 1
+                continue
             else:
-                # data = ImageTk.PhotoImage(data)
-                output_insert(END, "msg str " + '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
-                output_insert(END, data, "")
+                break
+        data = data[count:]
+        try:
+            if type_msg == Image.__name__ or type_msg in IMAGE_TYPE:
+                if type_msg == GifImageFile.__name__:
+                    if data.__class__ is not bytes:
+                        data = data.encode('latin-1')
+                    data = Image.open(io.BytesIO(data))
+                else:
+                    print("len", len(data))
+                    data_ = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
+                    decoded_b64 = base64.b64decode(data_)
+                    data_ = pickle.loads(decoded_b64)
+                    data = data_
+
+            elif type_msg == str.__name__:
+                pass
+        except pickle.PickleError as e:
+            if data.__class__ is not bytes:
+                data = data.encode('latin-1')
+            data = Image.open(io.BytesIO(data))
+
+        except ValueError as e:
+            if data.__class__ is not bytes:
+                data = data.encode('latin-1')
+            data = Image.open(io.BytesIO(data))
+        except EOFError as e:
+            print(e)
+        if data.__class__ is Image or data.__class__.__name__ in IMAGE_TYPE:
+            encode_flag = False
+            if data.__class__ is GifImageFile:
+                encode = decode_info(data)
+                if encode is not None:
+                    data = encode
+                    encode_flag = True
+            if hasattr(data, "info") or encode_flag:
+                if hasattr(data, "info") and "date" in data.info.keys():
+                    data = stego.decode_info(data)
+                    if data.__class__ is str:
+                        output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
+                                      OutputType.receive_e.value)
+                    else:
+                        # data = ImageTk.PhotoImage(data)
+                        output_insert(END, "msg str " + '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
+                        output_insert(END, data, "")
+
+                else:
+                    output_insert(END, "msg str " + '\n\r' + sender + " send:\n", OutputType.receive_e.value)
+                    output_insert(END, data, "")
 
         else:
+            output_insert(END, "msg str " + '\n\r' + sender + '\n\r' + data, OutputType.receive.value)
 
-            output_insert(END, "msg str " + '\n\r' + sender + " send:\n", OutputType.receive_e.value)
-            output_insert(END, data, "")
+        with massage_list_lock:
+            messages_to_write.append("ACk" + ack)
+            messages_ack["ACk" + ack] = [Ack.ack, ack + " " + "ack" + " " + sender]
+    except:
+        with massage_list_lock:
+            messages_to_write.append("ACk" + ack)
+            messages_ack["ACk" + ack] = [Ack.ack, ack + " " + "ack_bad" + " " + sender]
 
-    else:
-        output_insert(END, "msg str " + '\n\r' + sender + '\n\r' + data, OutputType.receive.value)
+
+def ack_nethode(ack, cmd):
+    if cmd == "ack":
+        try:
+            messages_ack.pop(ack)
+            messages_to_write.remove(ack)
+        except KeyError:
+            return
+        except ValueError:
+            return
+    elif "ack_bad" in cmd:
+        try:
+            messages_to_write.append(ack)
+            messages_ack[ack][0] = Ack.bad
+        except KeyError:
+            return
 
 
-def ans(cmd, data):
+def ans(ack, cmd, data):
     if cmd == "msg":
-        getting_msg(data)
+        getting_msg(ack, data)
     elif "ans_all" in cmd:
         data = json.loads(data)
         output = "people in server:" + '\n\r'.join([str(item) for item in data.items()])
@@ -419,16 +446,22 @@ def ans(cmd, data):
         for i in data:
             if i not in CONTECT_MENU.values():
                 CONTECT_MENU[i] = i
-    elif "return_name" in cmd:
+    elif "return_name" in ack:
+        c=ack
+        ack=cmd
+        cmd=c
         cmd = cmd.split('<', 1)[1].split('>', 1)[0]
         CONTECT_MENU[cmd] = data
-        output_insert(END, "return_name str " + data, OutputType.server_ans.value)
+        output_insert(END, "return_name " + ack, OutputType.server_ans.value,True,True)
     elif "ans_error" in cmd:
         output_insert(END, data, OutputType.error_msg.value)
     elif cmd == 'ans_name_':
-        output_insert(END, "return_name str your name is: " + data, OutputType.server_ans.value)
+        output_insert(END, "your name is: " + data, OutputType.server_ans.value,True,True)
     elif "ans_success" in cmd:
-        output_insert(END, "your name change to: " + data, OutputType.server_ans.value)
+        output_insert(END, "your name change" + data, OutputType.server_ans.value,True,True)
+
+    elif "ack" in cmd:
+        ack_nethode(ack, cmd)
     elif "ans_delete" in cmd:
         key = find_name(data)
         if key is not None:
@@ -451,16 +484,26 @@ def output_insert_system(start, data, color):
         text_output.config(state=DISABLED)
 
 
-def output_insert(start, data, color):
+def output_insert(start, data, color, recive=True,full_data=False):
     global INDEX
-
     with text_output_lock:
         text_output.config(state=NORMAL)
+        if  not recive:
+            data = data.split(" ", 1)
+            msg_commend=data[0]
+            data=data[1]
+
+        if full_data:
+            HISTORY[INDEX] = data + '\n'
+            text_output.insert(start, HISTORY[INDEX], color)
+            return
         if data.__class__ is str:
             HISTORY[INDEX] = data
             type_msg = data.split(" ", 2)
             if color == OutputType.sending.value or color == OutputType.sending_e.value:
                 address = type_msg[0].split("[", 1)
+                if 'msg' in address:
+                    address=msg_commend.split("[", 1)
                 if len(address) == 2:
                     address = address[1].split("]", 1)[0]
                     text_output.insert(start, address + '\n', color)
@@ -474,7 +517,10 @@ def output_insert(start, data, color):
                     if len(type_msg) == 2:
                         type_msg = type_msg[1]
                 else:
-                    data = type_msg[1]
+                    if type_msg[1] in EMPTY_DATA:
+                        data = type_msg[0]
+                    else:
+                        data = type_msg[1]
                     type_msg = type_msg[0]
 
             if type_msg in IMAGE_TYPE:
@@ -490,7 +536,6 @@ def output_insert(start, data, color):
                     output = output[0]
                 HISTORY[INDEX] = output + '\n'
                 text_output.insert(start, HISTORY[INDEX], color)
-
 
         elif data.__class__.__name__ in IMAGE_TYPE or data.__class__ is ImageTk.PhotoImage:
 
@@ -547,11 +592,11 @@ def main1():
             rlist, wlist, xlist = select.select([my_socket], [my_socket], [])
 
             if my_socket in rlist:
-                include_length_field, cmd, data = get_msg(my_socket)
+                include_length_field, ack, cmd, data = get_msg(my_socket)
                 if include_length_field:
                     if data is not None:
                         print("len data r:", len(data))
-                    ans(cmd, data)
+                    ans(ack, cmd, data)
 
                 else:
                     try:
@@ -570,30 +615,35 @@ def main1():
                         return
 
             for message in messages_to_write:
-                to_input, data, encrypt, msg_e = message
-                if my_socket in wlist:
-                    print("len data:", len(data))
-                    for m in create_msg(data):
-                        if m == ERROR:
-                            output_insert(END, '\n\r' + m + data,
-                                          OutputType.error_msg.value)
-                        print("len a:", len(m))
-                        my_socket.send(m)
-                    if encrypt is OutputType.sending:
-                        out = data.split(" ", 2)
-                        # if int(out[1]) == SENDIN_DICT[out[0] + " "][0]:
-                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + data,
-                                      OutputType.sending.value)
-                    elif encrypt is OutputType.sending_e:
-                        # out = data.split(" ", 2)
-                        # if int(out[1]) == SENDIN_DICT[out[0]][0]:
-                        output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " + msg_e
-                                      + " **", OutputType.sending_e.value)
-
-                    with massage_list_lock:
+                wmsg = messages_ack[message]
+                if wmsg[0] is Ack.bad or wmsg[0] is Ack.waiting or \
+                        wmsg is Ack.ack or wmsg[0] is Ack.server:
+                    to_input, data, encrypt, msg_e = wmsg[1]
+                    if my_socket in wlist:
+                        print("len data:", len(data))
+                        for m in create_msg(data):
+                            if m == ERROR:
+                                output_insert(END, '\n\r' + m + data,
+                                              OutputType.error_msg.value, False)
+                            print("len a:", len(m))
+                            my_socket.send(m)
                         messages_to_write.remove(message)
 
-                        # massage_list_lock.release()
+                        if encrypt is OutputType.sending:
+                            output_insert(END, '\n\r' + str(to_input) + '\n\r' + data,
+                                          OutputType.sending.value, False)
+                        elif encrypt is OutputType.sending_e:
+
+                            output_insert(END, '\n\r' + str(to_input) + '\n\r' + "** " + msg_e
+                                          + " **", OutputType.sending_e.value, False)
+
+                        with massage_list_lock:
+                            if messages_ack[message][0] is Ack.ack or wmsg[0] is Ack.server:
+
+                                messages_ack.pop(message)
+                            else:
+                                messages_ack[message][0] = Ack.send
+
                 if not window.winfo_exists():
                     output_insert(END, "Closing", OutputType.system_info.value)
                     print("Closing\n")

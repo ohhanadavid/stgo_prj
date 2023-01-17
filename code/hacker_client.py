@@ -4,11 +4,10 @@
    Possible client commands defined in protocol.py
 """
 import argparse
+import json
 import socket
 import tkinter.filedialog
-import tkinter.messagebox as messagebox
 import tkinter.scrolledtext
-from enum import Enum
 from tkinter import *
 
 import rsa
@@ -53,36 +52,22 @@ msg_input = ""
 messages_to_write = []
 HISTORY = dict()
 INDEX = 0
-CONTECT_MENU = dict()
 SERVER_RESPONSE = ""
 TYPE_SERVER_RESPONSE = ""
 BLACK_LIST_SIMBOLD = "[]{}"
 text_output_lock = threading.Lock()
 massage_list_lock = threading.Lock()
 CONNECT_TRYNIG = 10
-SENDIN_DICT = dict()
 EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a', " "]
 IMAGE_TYPE = [JpegImageFile.__name__, PngImageFile.__name__, GifImageFile.__name__, BmpImageFile.__name__,
               TiffImageFile.__name__, IcoImageFile.__name__, PhotoImage.__class__.__name__]
 
 
-def find_name(name):
-    for i in CONTECT_MENU.keys():
-        if CONTECT_MENU[i] == name:
-            return i
-    return None
-
-
 def getting_msg(data):
     data = data.split(" ", 2)
     sender = data[0]
-    for i in CONTECT_MENU.items():
-        if i[1] == sender:
-            sender = i[0]
-
     type_msg = data[1]
     data = data[2]
-    i = 0
     count = 0
     for i in range(len(data)):
         if data[i] in EMPTY_DATA:
@@ -121,33 +106,27 @@ def getting_msg(data):
     output_insert(END, data, OutputType.receive.value)
 
 
-def ans(cmd, data):
+def ans(cmd, data, ack):
     if cmd == "msg":
         getting_msg(data)
     elif "ans_all" in cmd:
         data = json.loads(data)
         output = "people in server:" + '\n\r'.join([str(item) for item in data.items()])
         output_insert(END, output, OutputType.server_ans.value)
-        for i in data:
-            if i not in CONTECT_MENU.values():
-                CONTECT_MENU[i] = i
-    elif "return_name" in cmd:
-        cmd = cmd.split('<', 1)[1].split('>', 1)[0]
-        CONTECT_MENU[cmd] = data
-        output_insert(END, "return_name str " + data, OutputType.server_ans.value)
+    elif "return_name" in ack:
+        ack = cmd
+        output_insert(END, "return_name " + ack, OutputType.server_ans.value, True, True)
     elif "ans_error" in cmd:
         output_insert(END, data, OutputType.error_msg.value)
     elif cmd == 'ans_name_':
-        output_insert(END, "return_name str your name is: " + data, OutputType.server_ans.value)
+        output_insert(END, "your name is: " + data, OutputType.server_ans.value, True, True)
     elif "ans_success" in cmd:
-        output_insert(END, "your name change to: " + data, OutputType.server_ans.value)
-    elif "ans_delete" in cmd:
-        key = find_name(data)
-        if key is not None:
-            CONTECT_MENU.pop(key)
-            output_insert(END, data + "out from server", OutputType.server_ans.value)
+        output_insert(END, "your name change" + data, OutputType.server_ans.value, True, True)
     else:
-        return
+        try:
+            output_insert(END, ack + " " + cmd + " " + data, OutputType.server_ans.value)
+        except:
+            return
 
 
 def output_insert_system(start, data, color):
@@ -163,16 +142,26 @@ def output_insert_system(start, data, color):
         text_output.config(state=DISABLED)
 
 
-def output_insert(start, data, color):
+def output_insert(start, data, color, recive=True,full_data=False):
     global INDEX
-
     with text_output_lock:
         text_output.config(state=NORMAL)
+        if  not recive:
+            data = data.split(" ", 1)
+            msg_commend=data[0]
+            data=data[1]
+
+        if full_data:
+            HISTORY[INDEX] = data + '\n'
+            text_output.insert(start, HISTORY[INDEX], color)
+            return
         if data.__class__ is str:
             HISTORY[INDEX] = data
             type_msg = data.split(" ", 2)
             if color == OutputType.sending.value or color == OutputType.sending_e.value:
                 address = type_msg[0].split("[", 1)
+                if 'msg' in address:
+                    address=msg_commend.split("[", 1)
                 if len(address) == 2:
                     address = address[1].split("]", 1)[0]
                     text_output.insert(start, address + '\n', color)
@@ -186,7 +175,10 @@ def output_insert(start, data, color):
                     if len(type_msg) == 2:
                         type_msg = type_msg[1]
                 else:
-                    data = type_msg[1]
+                    if type_msg[1] in EMPTY_DATA:
+                        data = type_msg[0]
+                    else:
+                        data = type_msg[1]
                     type_msg = type_msg[0]
 
             if type_msg in IMAGE_TYPE:
@@ -202,7 +194,6 @@ def output_insert(start, data, color):
                     output = output[0]
                 HISTORY[INDEX] = output + '\n'
                 text_output.insert(start, HISTORY[INDEX], color)
-
 
         elif data.__class__.__name__ in IMAGE_TYPE or data.__class__ is ImageTk.PhotoImage:
 
@@ -236,7 +227,7 @@ def insert_image(data, start):
             data = Image.open(io.BytesIO(data))
     if hasattr(data, "resize"):
         size = (int(new_size * (data.size[0] / data.size[1])), int(new_size / (data.size[0] / data.size[1])))
-        data=data.resize(size)
+        data = data.resize(size)
         HISTORY[INDEX] = ImageTk.PhotoImage(data)
     elif hasattr(data, 'config'):
         if hasattr(data.config, 'width') and hasattr(data.config, 'height'):
@@ -259,11 +250,11 @@ def main1():
             rlist, wlist, xlist = select.select([my_socket], [my_socket], [])
 
             if my_socket in rlist:
-                include_length_field, cmd, data = get_msg(my_socket)
+                include_length_field, ack, cmd, data = get_msg(my_socket)
                 if include_length_field:
                     if data is not None:
                         print("len data r:", len(data))
-                    ans(cmd, data)
+                    ans(cmd, data, ack)
 
                 else:
                     try:
@@ -278,7 +269,6 @@ def main1():
                         output_insert(END, "Closing", OutputType.system_info.value)
                         my_socket.close()
                         return
-
 
         except KeyboardInterrupt:
             output_insert(END, "Closing", OutputType.system_info.value)
@@ -319,7 +309,7 @@ def main():
     global massage_list_lock
     global label_error
 
-    my_socket.connect((ip,5))
+    my_socket.connect((ip, 5))
 
     if text_output_lock.locked():
         text_output_lock.release()
@@ -355,24 +345,14 @@ def main():
     text_output.tag_config(OutputType.server_ans.value, foreground="#585858")
     text_output.tag_config(OutputType.error_msg.value, foreground="red")
 
-
     client_loop = threading.Thread(target=main1)
 
-
-
-
-
-
     text_output.pack()
-
-
 
     client_loop.daemon = True
 
     client_loop.start()
     window.mainloop()
-
-
 
 
 if __name__ == "__main__":

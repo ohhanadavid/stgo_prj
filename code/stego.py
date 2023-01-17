@@ -51,7 +51,7 @@ def not_encoded_gif(gif):
                         else:
                             pixel -= 1
             pix_encode[0, 0] = pixel
-            #pixel_dict[0] = pix_encode
+            # pixel_dict[0] = pix_encode
             frames[0].save(buffer, format="gif", save_all=True, append_images=frames[1:])
             gif_image = buffer.getvalue()
             return Image.open(io.BytesIO(gif_image))
@@ -95,6 +95,8 @@ def prime(n):
 def encode_enc(newimg, datalist, lendata, codex, primeh, primem):
     w = newimg.size[0]
     h = newimg.size[1]
+    if newimg.mode != 'RGB':
+       newimg= newimg.convert("RGB")
     list_pix = []
     data = iter(datalist)
     c = iter(codex)
@@ -135,9 +137,11 @@ def encode_enc(newimg, datalist, lendata, codex, primeh, primem):
 
             x = int((xy * primeh) % w)
             y = int((xy * primem) % h)
+            salt=1
             while (x, y) in list_pix:
-                x = int((x + primeh) % w)
-                y = int((y + primem) % h)
+                x = int((x + primeh*salt) % w)
+                y = int((y + primem+salt) % h)
+                salt+=1
             if x < 0:
                 x *= -1
             if y < 0:
@@ -147,6 +151,7 @@ def encode_enc(newimg, datalist, lendata, codex, primeh, primem):
             pixel = newimg.getpixel((x, y))[:3]
             pixel = mod_pix(pixel, se, end)
             newimg.putpixel((x, y), pixel)
+    print(list_pix)
     return newimg
 
 
@@ -325,7 +330,7 @@ def encoded_in_gif(books, c, codex, data, h, image, lendata, m, num_book, page_o
         rows = math.ceil(math.sqrt(lendata * 3) * ratio)
         columns = math.ceil(math.sqrt(lendata * 3) / ratio * 3)
         image = image.resize((rows, columns))
-    while len(codex) < lendata * 8:
+    while len(codex) < lendata * 3:
         try:
             print(c)
             codex += page_obj.extract_text()
@@ -354,13 +359,19 @@ def encode_info(t, data, img=""):
     pdf_file_obj = open(pdf_file_obj, 'rb')
     # creating a pdf reader object
     pdf_file = PyPDF2.PdfReader(pdf_file_obj)
-    if img == "":
-        images_in_dir = find_path('images')
-        img = PATH + r'\\images\\' + images_in_dir[random.randint(0, len(images_in_dir))]
-        print(img)
-    image = Image.open(img, 'r')
+    try:
+        if img == "":
+            images_in_dir = find_path('images')
+            image = PATH + r'\\images\\' + images_in_dir[random.randint(0, len(images_in_dir))]
+            print(img)
+        elif img.__class__ is str:
+            image = Image.open(img, 'r')
+        else:
+            image=img
+    except AttributeError:
+        image = Image.open(PATH + r'\\images\\' + "black.png", 'r')
     image.info['date'] = t
-    image.info['image name'] = img.split('\\')[-1]
+
 
     if data.__class__ is str:
         data = data.encode()
@@ -392,7 +403,7 @@ def encoded_in_image(books, c, codex, data, h, image, lendata, m, num_book, page
         rows = math.ceil(math.sqrt(lendata * 3) * ratio)
         columns = math.ceil(math.sqrt(lendata * 3) / ratio * 3)
         image = image.resize((rows, columns))
-    while len(codex) < lendata * 6:
+    while len(codex) < lendata * 2:
         try:
             print(c)
             codex += page_obj.extract_text()
@@ -474,9 +485,11 @@ def decode_image(image):
 
         x = int((mxy * primeh) % num_of_lines_pix)
         y = int((mxy * primem) % num_of_row_pix)
+        salt=1
         while (x, y) in list_pix:
-            x = int((x + primeh) % num_of_lines_pix)
-            y = int((y + primem) % num_of_row_pix)
+            x = int((x + primeh*salt) % num_of_lines_pix)
+            y = int((y + primem+salt) % num_of_row_pix)
+            salt+=1
         if x < 0:
             x *= -1
         if y < 0:
@@ -496,6 +509,7 @@ def decode_image(image):
                 binstr = ''
                 count = 0
                 if pixels[-1] % 2 != 0:
+                    print(list_pix)
                     return data
                 else:
                     break
@@ -681,7 +695,7 @@ def main():
     p = Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\map.JPG", 'r')
     # u = encode_info(pt.localtime(), "aba saba daba",                    r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\Zz04NjA3ZjljMjQ0ODkxMWViOWRjYzU1OGJkNjI1ZjVkZA==.gif")
     y = encode_info(pt.localtime(), "lama ama sav af af a tama",
-                    r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\map.JPG")
+                    r"C:\Users\David Ohhana\Desktop\College\cyber network\stgo_prj-tag1\code\images\tomer.png")
     # print(decode_info(u) == "aba saba daba")
     print(decode_info(y) == "lama ama sav af af a tama")
 
