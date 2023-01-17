@@ -65,6 +65,7 @@ def create_msg(data):
 def get_msg(my_socket):
     try:
         count = 0
+        recv_count=1048576
         """Extract message from protocol, without the length field
            If length field does not include a number, returns False, "Error" """
         with RECVE_LOCK:
@@ -77,8 +78,10 @@ def get_msg(my_socket):
                     my_socket.setblocking(False)
                     while count < data_length:
                         try:
+                            if count + recv_count>data_length:
+                                recv_count=data_length-count
                             r = ""
-                            r = my_socket.recv(data_length)
+                            r = my_socket.recv(recv_count)
                             print("r", len(r))
                             data += r.decode('latin-1')
                             count += len(r)

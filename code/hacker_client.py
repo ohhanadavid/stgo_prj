@@ -23,10 +23,9 @@ from protocol import *
 from stego import *
 
 
-class ContectInfo:
+class ContactInfo:
     name = ""
-    picther = Image
-    public_key = rsa.PublicKey
+
 
 
 class OutputType(Enum):
@@ -40,7 +39,7 @@ class OutputType(Enum):
 
 
 def ip_from_user():
-    parser = argparse.ArgumentParser(usage="scurety chat app", description="scurety chat app")
+    parser = argparse.ArgumentParser(usage="security chat app", description="security chat app")
     parser.add_argument("-ip", "--ip", type=str, default='127.0.0.1', help="ip you want to connect")
     args = parser.parse_args()
     return args.ip
@@ -54,56 +53,86 @@ HISTORY = dict()
 INDEX = 0
 SERVER_RESPONSE = ""
 TYPE_SERVER_RESPONSE = ""
-BLACK_LIST_SIMBOLD = "[]{}"
+BLACK_LIST_SYMBOLS = "[]{}"
 text_output_lock = threading.Lock()
 massage_list_lock = threading.Lock()
-CONNECT_TRYNIG = 10
+CONNECT_TRYING = 10
 EMPTY_DATA = ['\n', '\r', '\b', '\a', '', ' \n', ' \r', ' \b', ' \a', " "]
 IMAGE_TYPE = [JpegImageFile.__name__, PngImageFile.__name__, GifImageFile.__name__, BmpImageFile.__name__,
               TiffImageFile.__name__, IcoImageFile.__name__, PhotoImage.__class__.__name__]
 
 
-def getting_msg(data):
+
+def getting_msg(ack, data=""):
     data = data.split(" ", 2)
     sender = data[0]
     type_msg = data[1]
     data = data[2]
     count = 0
-    for i in range(len(data)):
-        if data[i] in EMPTY_DATA:
-            count += 1
-            continue
-        else:
-            break
-    data = data[count:]
-    try:
-        if type_msg == Image.__name__ or type_msg in IMAGE_TYPE:
-            if type_msg == GifImageFile.__name__:
-                if data.__class__ is not bytes:
-                    data = data.encode('latin-1')
-                data = Image.open(io.BytesIO(data))
+    if True:
+
+        for i in range(len(data)):
+            if data[i] in EMPTY_DATA:
+                count += 1
+                continue
             else:
-                print("len", len(data))
-                data_ = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
-                decoded_b64 = base64.b64decode(data_)
-                data_ = pickle.loads(decoded_b64)
-                data = data_
+                break
+        data = data[count:]
+        try:
+            if type_msg == Image.__name__ or type_msg in IMAGE_TYPE:
+                if type_msg == GifImageFile.__name__:
+                    if data.__class__ is not bytes:
+                        data = data.encode('latin-1')
+                    data = Image.open(io.BytesIO(data))
+                else:
+                    print("len", len(data))
+                    data_ = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
+                    decoded_b64 = base64.b64decode(data_)
+                    data_ = pickle.loads(decoded_b64)
+                    data = data_
 
-        elif type_msg == str.__name__:
-            pass
-    except pickle.PickleError as e:
-        if data.__class__ is not bytes:
-            data = data.encode('latin-1')
-        data = Image.open(io.BytesIO(data))
+        except pickle.PickleError as e:
+            print(e)
+            if data.__class__ is not bytes:
+                data = data.encode('latin-1')
+            data = Image.open(io.BytesIO(data))
+        except ValueError as e:
+            print(e)
+            if data.__class__ is not bytes:
+                data = data.encode('latin-1')
+            data = Image.open(io.BytesIO(data))
+        except EOFError as e:
+            print(e)
+        if data.__class__ is str:
+            data = data.split('>', 1)
+            if len(data) == 2:
+                data[0] = data[0][1:]
+                try:
+                    if data[0] != 'str':
+                        data_ = data[1].encode('latin-1')
+                        path = PATH+r'\\'+str(random.randint(0,1000000))+'.'+data[0]
+                        file = open(path, 'wb')
+                        file.write(data_)
+                        file.close()
+                        data = path.split(r"\\")[-1] + " save"
+                    else:
+                        data = data[1]
+                except:
+                    print("send function error 430")
+                    pass
+            else:
+                data=data[0]
 
-    except ValueError as e:
-        if data.__class__ is not bytes:
-            data = data.encode('latin-1')
-        data = Image.open(io.BytesIO(data))
-    except EOFError as e:
-        print(e)
-    output_insert(END, "msg str " + '\n\r' + sender + '\n\r', OutputType.receive.value)
-    output_insert(END, data, OutputType.receive.value)
+
+        if data.__class__ is str:
+            output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
+                              OutputType.receive_e.value)
+        else:
+
+            output_insert(END, "msg str " + '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
+            output_insert(END, data, "")
+
+
 
 
 def ans(cmd, data, ack):
@@ -260,7 +289,7 @@ def main1():
                     try:
                         my_socket.recv(1024)
                     except ConnectionAbortedError:
-                        for i in range(CONNECT_TRYNIG):
+                        for i in range(CONNECT_TRYING):
                             try:
                                 my_socket.connect(("127.0.0.1", PORT))
                                 break
@@ -283,7 +312,7 @@ def main1():
 
 
 def conction_fail():
-    for i in range(CONNECT_TRYNIG):
+    for i in range(CONNECT_TRYING):
         try:
             time.sleep(3)
             my_socket.connect(("127.0.0.1", PORT))

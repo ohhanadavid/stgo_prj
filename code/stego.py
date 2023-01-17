@@ -30,9 +30,9 @@ PATH = os.path.dirname(os.path.realpath(__file__))
 def not_encoded_gif(gif):
     try:
         buffer = io.BytesIO()
-        with gif as newimg:
+        with gif as new_img:
             pixel_dict = dict()
-            frames = [frame.copy() for frame in ImageSequence.Iterator(newimg)]
+            frames = [frame.copy() for frame in ImageSequence.Iterator(new_img)]
             for i, frame in enumerate(frames):
                 pixel_dict[i] = frame
             pix_encode = pixel_dict[0].load()
@@ -92,67 +92,67 @@ def prime(n):
     return 2
 
 
-def encode_enc(newimg, datalist, lendata, codex, primeh, primem):
-    w = newimg.size[0]
-    h = newimg.size[1]
-    if newimg.mode != 'RGB':
-       newimg= newimg.convert("RGB")
+def encode_enc(new_img, data_list, len_data, codex, prime_h, prime_m):
+    w = new_img.size[0]
+    h = new_img.size[1]
+    if new_img.mode != 'RGB':
+        new_img = new_img.convert("RGB")
     list_pix = []
-    data = iter(datalist)
+    data = iter(data_list)
     c = iter(codex)
     count = 0
     next_key = True
-    for i in range(lendata):
+    for i in range(len_data):
         for k in range(3):
             if next_key:
                 try:
-                    p = c.__next__()
-                    o = c.__next__()
+                    key1 = c.__next__()
+                    key2 = c.__next__()
                     next_key = False
                 except StopIteration as e:
                     print(e)
                     next_key = False
-                p = ord(p)
-                o = ord(o)
+                key1 = ord(key1)
+                key2 = ord(key2)
 
             end = EndOfWord
             if count + 3 < 8:
                 if count >= 3:
-                    xy = p + o
+                    xy = key1 + key2
                 else:
-                    xy = o * p
+                    xy = key2 * key1
                 se = data.__next__() + data.__next__() + data.__next__()
                 end.end_data = False
                 end.end_word = False
                 count += 3
             else:
-                xy = o - p
+                xy = key2 - key1
                 se = data.__next__() + data.__next__()
-                if i == lendata - 1:
+                if i == len_data - 1:
                     end.end_data = True
                 else:
                     end.end_data = False
                     end.end_word = True
                 count = 0
 
-            x = int((xy * primeh) % w)
-            y = int((xy * primem) % h)
-            salt=1
+            x = int((xy * prime_h) % w)
+            y = int((xy * prime_m) % h)
+            salt = 1
             while (x, y) in list_pix:
-                x = int((x + primeh*salt) % w)
-                y = int((y + primem+salt) % h)
-                salt+=1
+                x = int((x + prime_h * salt) % w)
+                y = int((y + prime_m + salt) % h)
+                salt += 1
             if x < 0:
                 x *= -1
             if y < 0:
                 y *= -1
             list_pix.append((x, y))
 
-            pixel = newimg.getpixel((x, y))[:3]
+            pixel = new_img.getpixel((x, y))[:3]
             pixel = mod_pix(pixel, se, end)
-            newimg.putpixel((x, y), pixel)
+            new_img.putpixel((x, y), pixel)
     print(list_pix)
-    return newimg
+    return new_img
 
 
 def mod_pix(pixel, data, end):
@@ -190,24 +190,23 @@ def mod_pix(pixel, data, end):
 
 
 # Encode data into image
-def encode_enc_gif(newimg, datalist, lendata, codex, primeh, primem, frame_len, t):
+def encode_enc_gif(new_img, data_list, len_data, codex, prime_h, prime_m, frame_len, t):
     key = (str.zfill(str(t.tm_sec.real), 2) + str.zfill(str(t.tm_min.real), 2) + str.zfill(str(t.tm_hour.real),
                                                                                            2)).encode('latin-1')
     len_key = len(key) * 3
     a = "".join([format(n, '08b') for n in key])
     print("e=", a)
     key = iter(a)
-    w = newimg.size[0]
-    h = newimg.size[1]
+    w = new_img.size[0]
+    h = new_img.size[1]
     list_pix = []
-    data = iter(datalist)
+    data = iter(data_list)
     c = iter(codex)
-    count = 0
 
-    keyl = []
+    key_list = []
     buffer = io.BytesIO()
-    with newimg as newimg:
-        frames = [frame.copy() for frame in ImageSequence.Iterator(newimg)]
+    with new_img as new_img:
+        frames = [frame.copy() for frame in ImageSequence.Iterator(new_img)]
         pixel_dict = dict()
         end = EndOfWord
         count = 0
@@ -245,46 +244,44 @@ def encode_enc_gif(newimg, datalist, lendata, codex, primeh, primem, frame_len, 
             list_pix.append((1, i, 1))
             pixel = pixels[1, i]
             pixels[1, i] = mod_pix(pixel, se, end)
-            keyl.append(pixels[1, i])
+            key_list.append(pixels[1, i])
 
         r = len(list_pix)
 
         print(i)
-        xy = 0
-        frame = 0
         change_key = True
-        for i in range(lendata):
+        for i in range(len_data):
             for k in range(3):
 
                 if change_key:
                     try:
-                        p = c.__next__()
-                        o = c.__next__()
+                        key1 = c.__next__()
+                        key2 = c.__next__()
                         frame1 = c.__next__()
                         change_key = False
 
                     except StopIteration as e:
                         print(e)
-                    p = ord(p)
-                    o = ord(o)
+                    key1 = ord(key1)
+                    key2 = ord(key2)
                     frame1 = ord(frame1)
                 if count + 3 < 8:
                     if count >= 3:
-                        xy = p + o
+                        xy = key1 + key2
                         frame = (frame1 + xy)
                     else:
-                        xy = p * o
+                        xy = key1 * key2
                         frame = (frame1 * xy)
                     se = data.__next__() + data.__next__() + data.__next__()
                     end.end_data = False
                     end.end_word = False
                     count += 3
                 else:
-                    xy = o - p
+                    xy = key2 - key1
                     frame = (xy - frame1)
                     change_key = True
                     se = data.__next__() + data.__next__()
-                    if i == lendata - 1:
+                    if i == len_data - 1:
                         end.end_data = True
                     else:
                         end.end_data = False
@@ -298,13 +295,13 @@ def encode_enc_gif(newimg, datalist, lendata, codex, primeh, primem, frame_len, 
                 frame = int(frame % frame_len)
                 if frame < 0:
                     frame *= -1
-                x = int((xy * primeh) % w)
+                x = int((xy * prime_h) % w)
 
-                y = int((xy * primem) % h)
+                y = int((xy * prime_m) % h)
 
                 while (x, y, frame) in list_pix:
-                    x = int((x + primeh) % w)
-                    y = int((y + primem) % h)
+                    x = int((x + prime_h) % w)
+                    y = int((y + prime_m) % h)
                 if y < 0:
                     y *= -1
                 if x < 0:
@@ -323,14 +320,14 @@ def encode_enc_gif(newimg, datalist, lendata, codex, primeh, primem, frame_len, 
     return Image.open(io.BytesIO(gif_image))
 
 
-def encoded_in_gif(books, c, codex, data, h, image, lendata, m, num_book, page_obj, pdf_file, t):
+def encoded_in_gif(books, c, codex, data, h, image, len_data, m, num_book, page_obj, pdf_file, t):
     image_frame_len = image.n_frames
-    if lendata > image.size[0] * image.size[1] * image_frame_len:
+    if len_data > image.size[0] * image.size[1] * image_frame_len:
         ratio = image.size[0] / image.size[1]
-        rows = math.ceil(math.sqrt(lendata * 3) * ratio)
-        columns = math.ceil(math.sqrt(lendata * 3) / ratio * 3)
+        rows = math.ceil(math.sqrt(len_data * 3) * ratio)
+        columns = math.ceil(math.sqrt(len_data * 3) / ratio * 3)
         image = image.resize((rows, columns))
-    while len(codex) < lendata * 3:
+    while len(codex) < len_data * 3:
         try:
             print(c)
             codex += page_obj.extract_text()
@@ -346,8 +343,8 @@ def encoded_in_gif(books, c, codex, data, h, image, lendata, m, num_book, page_o
             pdf_file = PyPDF2.PdfReader(pdf_file_obj)
             c = 0
             page_obj = pdf_file.pages[c]
-    print(len(codex), lendata)
-    save_image = encode_enc_gif(image, data, lendata, codex, prime(h), prime(m), image_frame_len, t)
+    print(len(codex), len_data)
+    save_image = encode_enc_gif(image, data, len_data, codex, prime(h), prime(m), image_frame_len, t)
 
     return save_image
 
@@ -367,11 +364,10 @@ def encode_info(t, data, img=""):
         elif img.__class__ is str:
             image = Image.open(img, 'r')
         else:
-            image=img
+            image = img
     except AttributeError:
         image = Image.open(PATH + r'\\images\\' + "black.png", 'r')
     image.info['date'] = t
-
 
     if data.__class__ is str:
         data = data.encode('latin-1')
@@ -381,7 +377,7 @@ def encode_info(t, data, img=""):
     data = "".join([format(n, '08b') for n in data])
     if len(data) == 0:
         raise ValueError('Data is empty')
-    lendata = len(data) // 8
+    len_data = len(data) // 8
     pages = len(pdf_file.pages)
     h = t.tm_hour.real
     m = t.tm_min.real
@@ -389,26 +385,26 @@ def encode_info(t, data, img=""):
     page_obj = pdf_file.pages[c]
     codex = ""
     if image.__class__ is not GifImageFile:
-        save_image = encoded_in_image(books, c, codex, data, h, image, lendata, m, num_book, page_obj, pdf_file)
+        save_image = encoded_in_image(books, c, codex, data, h, image, len_data, m, num_book, page_obj, pdf_file)
     elif image.__class__ is GifImageFile:
-        save_image = encoded_in_gif(books, c, codex, data, h, image, lendata, m, num_book, page_obj, pdf_file, t)
+        save_image = encoded_in_gif(books, c, codex, data, h, image, len_data, m, num_book, page_obj, pdf_file, t)
     else:
         save_image = ""
     return save_image
 
 
-def encoded_in_image(books, c, codex, data, h, image, lendata, m, num_book, page_obj, pdf_file):
-    if lendata > image.size[0] * image.size[1] * 6:
+def encoded_in_image(books, page_number_, codex, data, h, image, len_data, m, num_book, page_obj, pdf_file):
+    if len_data > image.size[0] * image.size[1] * 6:
         ratio = image.size[0] / image.size[1]
-        rows = math.ceil(math.sqrt(lendata * 3) * ratio)
-        columns = math.ceil(math.sqrt(lendata * 3) / ratio * 3)
+        rows = math.ceil(math.sqrt(len_data * 3) * ratio)
+        columns = math.ceil(math.sqrt(len_data * 3) / ratio * 3)
         image = image.resize((rows, columns))
-    while len(codex) < lendata * 2:
+    while len(codex) < len_data * 2:
         try:
-            print(c)
+            print(page_number_)
             codex += page_obj.extract_text()
-            c += 1
-            page_obj = pdf_file.pages[c]
+            page_number_ += 1
+            page_obj = pdf_file.pages[page_number_]
         except IndexError:
             if num_book + 1 < len(books):
                 num_book += 1
@@ -417,10 +413,10 @@ def encoded_in_image(books, c, codex, data, h, image, lendata, m, num_book, page
             pdf_file_obj = PATH + r'\\file\\' + books[num_book]
             pdf_file_obj = open(pdf_file_obj, 'rb')
             pdf_file = PyPDF2.PdfReader(pdf_file_obj)
-            c = 0
-            page_obj = pdf_file.pages[c]
-    print(len(codex), lendata)
-    save_image = encode_enc(image, data, lendata, codex, prime(h), prime(m))
+            page_number_ = 0
+            page_obj = pdf_file.pages[page_number_]
+    print(len(codex), len_data)
+    save_image = encode_enc(image, data, len_data, codex, prime(h), prime(m))
     return save_image
 
 
@@ -430,11 +426,8 @@ def decode_image(image):
     num_book = int(pow(image.info['date'].tm_min.real, image.info['date'].tm_sec.real) % len(books))
     pdf_file_obj = PATH + r'\\file\\' + books[num_book]
     pdf_file_obj = open(pdf_file_obj, 'rb')
-    # creating a pdf reader object
+
     pdf_file = PyPDF2.PdfReader(pdf_file_obj)
-    # img = input("Enter image name(with extension) : ")
-    # img = PATH + r"\\images\\ptt.png"
-    # image = Image.open(img, 'r')
     num_of_lines_pix = image.size[0]
     num_of_row_pix = image.size[1]
     list_pix = []
@@ -443,11 +436,11 @@ def decode_image(image):
     m = image.info['date'].tm_min.real
     s = (h * m) % pages
     page_obj = pdf_file.pages[s]
-    primeh = prime(h)
-    primem = prime(m)
+    prime_h = prime(h)
+    prime_m = prime(m)
     data = ''
     xy = []
-    c = iter(page_obj.extract_text())
+    key_decode = iter(page_obj.extract_text())
     count = 0
     binstr = ''
     next_key = True
@@ -457,7 +450,7 @@ def decode_image(image):
             for i in range(2):
                 try:
 
-                    xy.append(ord(c.__next__()))
+                    xy.append(ord(key_decode.__next__()))
                     next_key = False
                 except StopIteration:
                     s += 1
@@ -471,8 +464,8 @@ def decode_image(image):
                         pdf_file = PyPDF2.PdfFileReader(pdf_file_obj)
                         s = 0
                     page_obj = pdf_file.pages[s]
-                    c = iter(page_obj.extract_text())
-                    xy.append(ord(c.__next__()))
+                    key_decode = iter(page_obj.extract_text())
+                    xy.append(ord(key_decode.__next__()))
                     next_key = False
 
         if count + 3 < 8:
@@ -483,13 +476,13 @@ def decode_image(image):
         else:
             mxy = xy[1] - xy[0]
 
-        x = int((mxy * primeh) % num_of_lines_pix)
-        y = int((mxy * primem) % num_of_row_pix)
-        salt=1
+        x = int((mxy * prime_h) % num_of_lines_pix)
+        y = int((mxy * prime_m) % num_of_row_pix)
+        salt = 1
         while (x, y) in list_pix:
-            x = int((x + primeh*salt) % num_of_lines_pix)
-            y = int((y + primem+salt) % num_of_row_pix)
-            salt+=1
+            x = int((x + prime_h * salt) % num_of_lines_pix)
+            y = int((y + prime_m + salt) % num_of_row_pix)
+            salt += 1
         if x < 0:
             x *= -1
         if y < 0:
@@ -520,7 +513,7 @@ def decode_gif(image):
     count = 0
     binstr = ''
     list_pix = []
-    keyl = []
+    key_list = []
     frames = [frame.copy() for frame in ImageSequence.Iterator(image)]
     pixel_dict = dict()
     try:
@@ -538,7 +531,7 @@ def decode_gif(image):
         flag = True
         for k in range(0, 18):
             pixels = pixel_dict[1].getpixel((1, k))[:3]
-            keyl.append(pixels)
+            key_list.append(pixels)
             list_pix.append((1, k, 1))
             for i in pixels:
                 count += 1
@@ -561,12 +554,10 @@ def decode_gif(image):
         r = len(list_pix)
 
         sec = int(key[:2])
-        min = int(key[2:4])
+        _min = int(key[2:4])
         hour = int(key[4:])
-        h = hour
-        m = min
         books = find_path('file')
-        num_book = int(pow(min, sec) % len(books))
+        num_book = int(pow(_min, sec) % len(books))
         pdf_file_obj = PATH + r'\\file\\' + books[num_book]
         pdf_file_obj = open(pdf_file_obj, 'rb')
         pdf_file = PyPDF2.PdfReader(pdf_file_obj)
@@ -575,12 +566,12 @@ def decode_gif(image):
 
         pages = len(pdf_file.pages)
 
-        s = (h * m) % pages
+        s = (hour * _min) % pages
         page_obj = pdf_file.pages[s]
-        primeh = prime(h)
-        primem = prime(m)
+        prime_h = prime(hour)
+        prime_m = prime(_min)
         data = ''
-        xyframe = []
+        xy_frame = []
         c = iter(page_obj.extract_text())
 
         print(len(pixel_dict))
@@ -588,10 +579,10 @@ def decode_gif(image):
         key_flag = True
         while True:
             if key_flag:
-                xyframe = []
+                xy_frame = []
                 for i in range(3):
                     try:
-                        xyframe.append(ord(c.__next__()))
+                        xy_frame.append(ord(c.__next__()))
                         key_flag = False
                     except StopIteration:
                         s += 1
@@ -607,19 +598,19 @@ def decode_gif(image):
 
                         page_obj = pdf_file.pages[s]
                         c = iter(page_obj.extract_text())
-                        xyframe.append(ord(c.__next__()))
+                        xy_frame.append(ord(c.__next__()))
                         key_flag = False
             if count + 3 < 8:
                 if count >= 3:
-                    mxy = xyframe[0] + xyframe[1]
-                    frame_number = (xyframe[2] + mxy)
+                    mxy = xy_frame[0] + xy_frame[1]
+                    frame_number = (xy_frame[2] + mxy)
                 else:
-                    mxy = xyframe[0] * xyframe[1]
-                    frame_number = (mxy * xyframe[2])
+                    mxy = xy_frame[0] * xy_frame[1]
+                    frame_number = (mxy * xy_frame[2])
 
             else:
-                mxy = xyframe[1] - xyframe[0]
-                frame_number = (mxy - xyframe[2])
+                mxy = xy_frame[1] - xy_frame[0]
+                frame_number = (mxy - xy_frame[2])
                 key_flag = True
             salt = 1
             while frame_number % frame_len == 0:
@@ -629,13 +620,13 @@ def decode_gif(image):
             frame_number = int(frame_number % frame_len)
             if frame_number < 0:
                 frame_number *= -1
-            x = int((mxy * primeh) % num_of_lines_pix)
+            x = int((mxy * prime_h) % num_of_lines_pix)
 
-            y = int((mxy * primem) % num_of_row_pix)
+            y = int((mxy * prime_m) % num_of_row_pix)
 
             while (x, y, frame_number) in list_pix:
-                x = int((x + primeh) % num_of_lines_pix)
-                y = int((y + primem) % num_of_row_pix)
+                x = int((x + prime_h) % num_of_lines_pix)
+                y = int((y + prime_m) % num_of_row_pix)
             if x < 0:
                 x *= -1
             if y < 0:
@@ -691,17 +682,7 @@ def decode_info(image):
 
 
 def main():
-    pt = time
-    p = Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\map.JPG", 'r')
-    p=p.resize((1000,600))
-    p.save("aba.JPG",format="jpeg")
-    # u = encode_info(pt.localtime(), "aba saba daba",                    r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\Zz04NjA3ZjljMjQ0ODkxMWViOWRjYzU1OGJkNjI1ZjVkZA==.gif")
-    y = encode_info(pt.localtime(), p,
-                    r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\Zz04NjA3ZjljMjQ0ODkxMWViOWRjYzU1OGJkNjI1ZjVkZA==.gif")
-    b=decode_info(y)
-    y.save("encoded.gif",save_all=True,format="gif")
-    # print(decode_info(u) == "aba saba daba")
-    print(decode_info(y) == "lama ama sav af af a tama")
+    pass
 
 
 if __name__ == "__main__":

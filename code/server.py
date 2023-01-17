@@ -62,7 +62,6 @@ def get_names(client_socket):
     msg = ack_number + " ans_all " + json.dumps(
         dict(zip(DICTIONARY_SOCKETS.keys(), [i.client_name for i in DICTIONARY_SOCKETS.values()])))
 
-
     MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, msg)]
     MESSAGES_TO_SEND.append(ack_number)
 
@@ -133,14 +132,15 @@ def name_setting(client_socket, data):
         print(i + ":" + DICTIONARY_SOCKETS[i].client_name)
 
 
-def message(client_socket, data,ack):
+def message(client_socket, data, ack):
     """
     send message to auther clients
 
+    :param ack:
     :param client_socket: source
     :param data: destination and message
     """
-    msg_to = ""
+
     data = data.split('}', 1)
     # gen msg commend without destination
     if len(data) == 1:
@@ -164,7 +164,7 @@ def message(client_socket, data,ack):
         try:
 
             ack_number = str(random.randint(100000, 999999))
-            MESSAGES_ACK[ack_number] = [Ack.transport, (client_socket, msg)]
+            MESSAGES_ACK[ack_number] = [Ack.transport, (DICTIONARY_SOCKETS[i].client_socket, msg)]
             MESSAGES_TO_SEND.append(ack_number)
 
         except KeyError:
@@ -191,7 +191,7 @@ def get_name(client_socket, name):
         MESSAGES_TO_SEND.append(ack_number)
 
 
-def ack_recev(ack, cmd, data):
+def ack_recv(ack, cmd, data):
     try:
         client_socket = DICTIONARY_SOCKETS[data].client_socket
     except KeyError:
@@ -212,11 +212,11 @@ def check_cmd(ack, cmd, data, client_socket):
     elif cmd == "name":
         name_setting(client_socket, data)
     elif cmd == "msg":
-        message(client_socket, data,ack)
+        message(client_socket, data, ack)
     elif cmd == "waiting":
         return
     elif "ack" in cmd:
-        ack_recev(ack, cmd, data)
+        ack_recv(ack, cmd, data)
     else:
         ack_number = str(random.randint(100000, 999999))
         MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, "Invalid command")]
@@ -231,27 +231,27 @@ def main():
 
     server_socket.listen()
     print("Listening for clients...")
-    recv_thread = threading.Thread(target=recev_socket, args=(server_socket,))
+    recv_thread = threading.Thread(target=recv_socket, args=(server_socket,))
     send_thread = threading.Thread(target=send_method)
     while True:
         try:
             if not recv_thread.is_alive():
                 recv_thread.start()
-        except RuntimeError as e:
+        except RuntimeError:
             try:
 
                 recv_thread.run()
-            except AttributeError as e:
+            except AttributeError:
 
-                recv_thread = threading.Thread(target=recev_socket, args=(server_socket,))
+                recv_thread = threading.Thread(target=recv_socket, args=(server_socket,))
                 recv_thread.run()
         try:
             if not send_thread.is_alive():
                 send_thread.start()
-        except RuntimeError as e:
+        except RuntimeError:
             try:
                 send_thread.run()
-            except AttributeError as e:
+            except AttributeError:
 
                 send_thread = threading.Thread(target=send_method)
                 send_thread.run()
@@ -261,7 +261,7 @@ def main():
             pass
 
 
-def hacker_methode_recive(data):
+def hacker_methode_recv(data):
     global hacker_list
     try:
         for m in create_msg(data):
@@ -272,12 +272,9 @@ def hacker_methode_recive(data):
     except ConnectionResetError:
         hacker_server.close()
         hacker_list = []
-    except OSError as e:
+    except OSError:
         hacker_server.close()
         hacker_list = []
-
-
-
 
 
 def send_method():
@@ -297,11 +294,12 @@ def send_method():
                 if current_socket in wlist:
                     try:
                         for m in create_msg(data):
-                            current_socket.send(m)
+                            current_socket.sendall(m)
 
                         if hacker_socket in wlist:
-                            hacker_methode_recive(data)
-                        if MESSAGES_ACK[message_to_send][0] is Ack.ack or MESSAGES_ACK[message_to_send][0] is Ack.transport:
+                            hacker_methode_recv(data)
+                        if MESSAGES_ACK[message_to_send][0] is Ack.ack or MESSAGES_ACK[message_to_send][0] \
+                                is Ack.transport:
                             MESSAGES_ACK.pop(message_to_send)
                         else:
                             MESSAGES_ACK[message_to_send][0] = Ack.send
@@ -313,13 +311,15 @@ def send_method():
                         except KeyError:
                             pass
                     except OSError as e:
-                        if e.__str__() in "OSError: [WinError 10038] An operation was attempted on something that is not a socket":
+                        if e.__str__() in \
+                                "OSError: [WinError 10038] An operation was " \
+                                "attempted on something that is not a socket":
                             closing_client(current_socket)
                 with MESSAGES_TO_SEND_LOCK:
                     MESSAGES_TO_SEND.remove(message_to_send)
 
 
-def recev_socket(server_socket):
+def recv_socket(server_socket):
     global hacker_socket
     global hacker_address
     global hacker_list
@@ -338,24 +338,27 @@ def recev_socket(server_socket):
                 (hacker_socket, hacker_address) = current_socket.accept()
                 hacker_list.append(hacker_socket)
 
-
             else:
                 flag = bool
                 data = str
                 cmd = ""
                 ack = ""
                 try:
+
                     flag, ack, cmd, data = get_msg(current_socket)
                     if hacker_socket in wlist:
                         if data is None:
                             data = ""
-                        hacker_methode_recive(ack+" "+cmd +" "+ data)
+                        hacker_methode_recv(ack + " " + cmd + " " + data)
                 except ConnectionResetError:
                     with DICTIONARY_SOCKETS_LOCK:
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))
                 except ConnectionAbortedError:
                     with DICTIONARY_SOCKETS_LOCK:
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))
+                except ValueError:
+                    print(ack," ",cmd," ",data)
+                    continue
 
                 if flag:
                     check_cmd(ack, cmd, data, current_socket)

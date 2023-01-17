@@ -37,10 +37,17 @@ from cryptography.hazmat.primitives import serialization,hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.fernet import Fernet
 import PyPDF2
-c="<dsd>dsdadadaS)(%#$^$^#@$@@#SDFSGETRDGGGVCSLSDFDSV  slfggfafoksvokgggfgg64g64gsdgijr254$^%*^%&$%RSDCXVZSTJR!$%&"
+c="<אהבסהסבהגעגעכגעגעכ64g64gsdgijr254$^%*^%&$%RSDCXVZSTJR!$%&"
 p=c.encode('latin-1')
 d=p.decode('latin-1')
 print(c==d)
+c=threading.Lock()
+def b (a):
+    with c:
+        print(a)
+
+
+a=threading.Thread(target=b,args=("a",))
 
 
 
