@@ -5,6 +5,8 @@
 """
 import argparse
 import json
+import os.path
+import random
 import socket
 import tkinter.filedialog
 import tkinter.messagebox as messagebox
@@ -106,7 +108,7 @@ def get_name():
     get_name_window.mainloop()
 
 
-def send_massage(encode, image):
+def send_massage(encode, image, ather_file=False):
     msg_e = ""
     to_input = str(text_input_to.get())
     if to_input in EMPTY_DATA:
@@ -122,7 +124,7 @@ def send_massage(encode, image):
     else:
         to_input = [to_input]
     msg = ""
-    if not image:
+    if not image and not ather_file:
         msg = str(text_input_massage.get(1.0, END))
         count = 0
         for i in msg:
@@ -153,12 +155,27 @@ def send_massage(encode, image):
             msg = base64.b64encode(msg)
             msg = "".join([format(n, '08b') for n in msg])
         print("len image:", len(msg))
+    elif ather_file:
+        file_path = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(("files", "*.*"),))
+        if os.path.isfile(file_path):
+
+            file_ = open(file_path, 'rb').read().decode('latin-1')
+            if file_ == '' or file_ == " ":
+                file_ = open(file_path, 'r').read()
+
+            type_msg = file_path.split('.')[-1]
+            msg = "<" + type_msg + '>' + file_
+            msg_e = file_path.split(r'//')[-1] + " send"
     send_to = set()
     if encode is OutputType.sending_e:
-        if image:
+        if ather_file:
+            msg_e = "msg " + str(send_to) + type_msg + " " + file_path.split(r'\\')[-1]
+            msg = '<' + type_msg + '>' + msg
+        elif image:
             msg_e = "msg " + str(send_to) + type_msg + " " + msg
         else:
             msg_e = "msg " + str(send_to) + "str" + " " + msg
+            msg = "<str>" + msg
         path_image = tkinter.filedialog.askopenfilename(title="open image", filetypes=(
             ("Image files", "*.png"), ("Image files", "*.jpg"), ("Image files", "*.jpeg"), ("Gif", '*.gif')))
         if path_image is None or path_image == "":
@@ -339,7 +356,7 @@ def add_people():
     add_window.mainloop()
 
 
-def getting_msg(ack, data):
+def getting_msg(ack, data=""):
     data = data.split(" ", 2)
     sender = data[0]
     for i in CONTECT_MENU.items():
@@ -348,9 +365,9 @@ def getting_msg(ack, data):
 
     type_msg = data[1]
     data = data[2]
-    i = 0
+    encrypt = False
     count = 0
-    try:
+    if True:
 
         for i in range(len(data)):
             if data[i] in EMPTY_DATA:
@@ -372,51 +389,79 @@ def getting_msg(ack, data):
                     data_ = pickle.loads(decoded_b64)
                     data = data_
 
-            elif type_msg == str.__name__:
-                pass
         except pickle.PickleError as e:
+            print(e)
             if data.__class__ is not bytes:
                 data = data.encode('latin-1')
             data = Image.open(io.BytesIO(data))
-
         except ValueError as e:
+            print(e)
             if data.__class__ is not bytes:
                 data = data.encode('latin-1')
             data = Image.open(io.BytesIO(data))
         except EOFError as e:
             print(e)
+
         if data.__class__ is Image or data.__class__.__name__ in IMAGE_TYPE:
             encode_flag = False
             if data.__class__ is GifImageFile:
                 encode = decode_info(data)
                 if encode is not None:
                     data = encode
+                    encrypt = True
                     encode_flag = True
             if hasattr(data, "info") or encode_flag:
                 if hasattr(data, "info") and "date" in data.info.keys():
                     data = stego.decode_info(data)
-                    if data.__class__ is str:
-                        output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
-                                      OutputType.receive_e.value)
+                    encrypt = True
+        elif data.__class__ is str:
+            data = data.split('>', 1)
+            if len(data) == 2:
+                data[0] = data[0][1:]
+                try:
+                    if data[0] != 'str':
+                        data_ = data[1].encode('latin-1')
+                        path = tkinter.filedialog.asksaveasfilename(title="save as",
+                                                                    filetypes=((data[0], "*." + data[0]),))
+                        if path == "":
+                            path = PATH+r'\\'+str(random.randint(0,1000000))+'.'+data[0]
+                        file = open(path, 'wb')
+                        file.write(data_)
+                        file.close()
+                        data = path.split(r"\\")[-1] + " save"
                     else:
-                        # data = ImageTk.PhotoImage(data)
-                        output_insert(END, "msg str " + '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
-                        output_insert(END, data, "")
+                        data = data[1]
+                except:
+                    print("send function error 430")
+                    pass
+            else:
+                data=data[0]
 
-                else:
-                    output_insert(END, "msg str " + '\n\r' + sender + " send:\n", OutputType.receive_e.value)
-                    output_insert(END, data, "")
-
+        if encrypt:
+            if data.__class__ is str:
+                output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
+                              OutputType.receive_e.value)
+            else:
+                # data = ImageTk.PhotoImage(data)
+                output_insert(END, "msg str " + '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
+                output_insert(END, data, "")
         else:
-            output_insert(END, "msg str " + '\n\r' + sender + '\n\r' + data, OutputType.receive.value)
+            if data.__class__ is str:
+                output_insert(END, "msg str " + '\n\r' + sender + '\n\r' + data, OutputType.receive.value)
+
+            else:
+                output_insert(END, "msg str " + '\n\r' + sender + " send:\n", OutputType.receive_e.value)
+                output_insert(END, data, "")
 
         with massage_list_lock:
+
             messages_to_write.append("ACk" + ack)
-            messages_ack["ACk" + ack] = [Ack.ack, ack + " " + "ack" + " " + sender]
-    except:
-        with massage_list_lock:
-            messages_to_write.append("ACk" + ack)
-            messages_ack["ACk" + ack] = [Ack.ack, ack + " " + "ack_bad" + " " + sender]
+            messages_ack["ACk" + ack] = [Ack.ack,
+                                         [sender, ack + " " + "ack" + " " + sender, OutputType.sending.value, ""]]
+    # except:
+    #    with massage_list_lock:
+    #        messages_to_write.append("ACk" + ack)
+    #        messages_ack["ACk" + ack] = [Ack.ack, ack + " " + "ack_bad" + " " + sender]
 
 
 def ack_nethode(ack, cmd):
@@ -426,7 +471,8 @@ def ack_nethode(ack, cmd):
             messages_to_write.remove(ack)
         except KeyError:
             return
-        except ValueError:
+        except ValueError as e:
+            print(e)
             return
     elif "ack_bad" in cmd:
         try:
@@ -447,18 +493,18 @@ def ans(ack, cmd, data):
             if i not in CONTECT_MENU.values():
                 CONTECT_MENU[i] = i
     elif "return_name" in ack:
-        c=ack
-        ack=cmd
-        cmd=c
+        c = ack
+        ack = cmd
+        cmd = c
         cmd = cmd.split('<', 1)[1].split('>', 1)[0]
         CONTECT_MENU[cmd] = data
-        output_insert(END, "return_name " + ack, OutputType.server_ans.value,True,True)
+        output_insert(END, "return_name " + ack, OutputType.server_ans.value, True, True)
     elif "ans_error" in cmd:
         output_insert(END, data, OutputType.error_msg.value)
     elif cmd == 'ans_name_':
-        output_insert(END, "your name is: " + data, OutputType.server_ans.value,True,True)
+        output_insert(END, "your name is: " + data, OutputType.server_ans.value, True, True)
     elif "ans_success" in cmd:
-        output_insert(END, "your name change" + data, OutputType.server_ans.value,True,True)
+        output_insert(END, "your name change" + data, OutputType.server_ans.value, True, True)
 
     elif "ack" in cmd:
         ack_nethode(ack, cmd)
@@ -484,14 +530,14 @@ def output_insert_system(start, data, color):
         text_output.config(state=DISABLED)
 
 
-def output_insert(start, data, color, recive=True,full_data=False):
+def output_insert(start, data, color, recive=True, full_data=False):
     global INDEX
     with text_output_lock:
         text_output.config(state=NORMAL)
-        if  not recive:
+        if not recive:
             data = data.split(" ", 1)
-            msg_commend=data[0]
-            data=data[1]
+            msg_commend = data[0]
+            data = data[1]
 
         if full_data:
             HISTORY[INDEX] = data + '\n'
@@ -503,7 +549,7 @@ def output_insert(start, data, color, recive=True,full_data=False):
             if color == OutputType.sending.value or color == OutputType.sending_e.value:
                 address = type_msg[0].split("[", 1)
                 if 'msg' in address:
-                    address=msg_commend.split("[", 1)
+                    address = msg_commend.split("[", 1)
                 if len(address) == 2:
                     address = address[1].split("]", 1)[0]
                     text_output.insert(start, address + '\n', color)
@@ -615,10 +661,16 @@ def main1():
                         return
 
             for message in messages_to_write:
-                wmsg = messages_ack[message]
-                if wmsg[0] is Ack.bad or wmsg[0] is Ack.waiting or \
-                        wmsg is Ack.ack or wmsg[0] is Ack.server:
-                    to_input, data, encrypt, msg_e = wmsg[1]
+                print("massege to writh", messages_to_write)
+                print("dict", messages_ack.keys())
+                try:
+                    w_msg = messages_ack[message]
+                except KeyError:
+                    messages_to_write.remove(message)
+                    continue
+                if w_msg[0] is Ack.bad or w_msg[0] is Ack.waiting or \
+                        w_msg[0] is Ack.ack or w_msg[0] is Ack.server:
+                    to_input, data, encrypt, msg_e = w_msg[1]
                     if my_socket in wlist:
                         print("len data:", len(data))
                         for m in create_msg(data):
@@ -626,10 +678,11 @@ def main1():
                                 output_insert(END, '\n\r' + m + data,
                                               OutputType.error_msg.value, False)
                             print("len a:", len(m))
-                            my_socket.send(m)
-                        messages_to_write.remove(message)
+                            my_socket.sendall(m)
 
                         if encrypt is OutputType.sending:
+                            if msg_e != "":
+                                data = msg_e
                             output_insert(END, '\n\r' + str(to_input) + '\n\r' + data,
                                           OutputType.sending.value, False)
                         elif encrypt is OutputType.sending_e:
@@ -638,8 +691,9 @@ def main1():
                                           + " **", OutputType.sending_e.value, False)
 
                         with massage_list_lock:
-                            if messages_ack[message][0] is Ack.ack or wmsg[0] is Ack.server:
-
+                            messages_to_write.remove(message)
+                            print("massege to writh", messages_to_write)
+                            if messages_ack[message][0] is Ack.ack or w_msg[0] is Ack.server:
                                 messages_ack.pop(message)
                             else:
                                 messages_ack[message][0] = Ack.send
@@ -659,6 +713,8 @@ def main1():
         except ValueError as e:
             if e.__str__() == "ValueError: file descriptor cannot be a negative integer (-1)":
                 conction_fail()
+            else:
+                print(e)
 
 
 def conction_fail():
@@ -741,6 +797,8 @@ def main():
     send_massage_thred_se = threading.Thread(target=send_massage, args=(OutputType.sending_e, False))
     send_massage_thred_i = threading.Thread(target=send_massage, args=(OutputType.sending, True))
     send_massage_thred_ie = threading.Thread(target=send_massage, args=(OutputType.sending_e, True))
+    send_massage_thred_f = threading.Thread(target=send_massage, args=(OutputType.sending, False, True))
+    send_massage_thred_fe = threading.Thread(target=send_massage, args=(OutputType.sending_e, False, True))
 
     get_name_thred = threading.Thread(target=get_name)
 
@@ -756,6 +814,11 @@ def main():
     send_encrypt_msg_button = Button(frame2, text="send encrypt",
                                      command=lambda: call_send_massage_e(send_massage_thred_se))
     send_image_button = Button(frame2, text="send Image", command=lambda: call_send_image(send_massage_thred_i))
+
+    send_file_button = Button(frame2, text="send file", command=lambda: call_send_file(send_massage_thred_f))
+    send_encrypt_file_button = Button(frame2, text="send file encrypt",
+                                      command=lambda: call_send_file_e(send_massage_thred_fe))
+
     send_encrypt_image_button = Button(frame2, text="send encrypted Image",
                                        command=lambda: call_send_image_e(send_massage_thred_ie))
     get_name_button = Button(frame2, text="get name", command=lambda: call_get_name(get_name_thred))
@@ -777,7 +840,8 @@ def main():
     send_encrypt_msg_button.grid(row=7, column=2)
     send_image_button.grid(row=7, column=3)
     send_encrypt_image_button.grid(row=7, column=4)
-
+    send_file_button.grid(row=8, column=3)
+    send_encrypt_file_button.grid(row=8, column=4)
     open_group_thred.daemon = True
     get_contect_info_thred.daemon = True
     get_names_thred.daemon = True
@@ -939,6 +1003,36 @@ def call_send_image_e(ie):
             except AttributeError as e:
 
                 ie = threading.Thread(target=send_massage, args=(OutputType.sending_e, True))
+                ie.run()
+
+
+def call_send_file(ie):
+    if not ie.is_alive():
+        try:
+
+            ie.start()
+        except RuntimeError as e:
+            try:
+
+                ie.run()
+            except AttributeError as e:
+
+                ie = threading.Thread(target=send_massage, args=(OutputType.sending, False, True))
+                ie.run()
+
+
+def call_send_file_e(ie):
+    if not ie.is_alive():
+        try:
+
+            ie.start()
+        except RuntimeError as e:
+            try:
+
+                ie.run()
+            except AttributeError as e:
+
+                ie = threading.Thread(target=send_massage, args=(OutputType.sending_e, False, True))
                 ie.run()
 
 

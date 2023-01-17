@@ -37,6 +37,22 @@ from cryptography.hazmat.primitives import serialization,hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.fernet import Fernet
 import PyPDF2
+c="<dsd>dsdadadaS)(%#$^$^#@$@@#SDFSGETRDGGGVCSLSDFDSV  slfggfafoksvokgggfgg64g64gsdgijr254$^%*^%&$%RSDCXVZSTJR!$%&"
+p=c.encode('latin-1')
+d=p.decode('latin-1')
+print(c==d)
+
+
+
+f=open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\file\4_5857017150316743806.pdf",'rb')
+f=f.read()
+p=f.decode()
+p=io.BytesIO(f)
+y=open("w.pdf",'wb')
+y.write(f)
+
+
+
 
 pdf_file_obj = open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\file\1001 Books_ You Must Read Before You Die ( PDFDrive ).pdf", 'rb')
     # creating a pdf reader object

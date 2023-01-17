@@ -44,20 +44,21 @@ def create_msg(data):
 
         if len(data) >= 10 ** LENGTH_FIELD_SIZE:
             return (str.zfill(str(len(LENGTH_FIELD_SIZE_STR_ERROR)),
-                              LENGTH_FIELD_SIZE) + LENGTH_FIELD_SIZE_STR_ERROR).encode()
-        data = data.encode()
+                              LENGTH_FIELD_SIZE) + LENGTH_FIELD_SIZE_STR_ERROR).encode('latin-1')
+        data = data.encode('latin-1')
         with INTEGRITY_LOCK:
 
-            integrity_data = integrity_(data).hexdigest().encode()
+            integrity_data = integrity_(data).hexdigest().encode('latin-1')
 
-            id = str.zfill(random.randint(1, RANDOM_ID).__str__(), len(RANDOM_ID.__str__())).encode()
+            id = str.zfill(random.randint(1, RANDOM_ID).__str__(), len(RANDOM_ID.__str__())).encode('latin-1')
             print(id)
             data = id + b"_msg " + data
             integrity_data = id + b"_hash " + integrity_data
-            data = (str.zfill(str(len(data)), LENGTH_FIELD_SIZE)).encode() + data
-            integrity_data = (str.zfill(str(len(integrity_data)), LENGTH_FIELD_SIZE)).encode() + integrity_data
+            data = (str.zfill(str(len(data)), LENGTH_FIELD_SIZE)).encode('latin-1') + data
+            integrity_data = (str.zfill(str(len(integrity_data)), LENGTH_FIELD_SIZE)).encode('latin-1') + integrity_data
         return data, integrity_data
     except:
+        print("protocol error")
         return ERROR, ""
 
 
@@ -67,7 +68,7 @@ def get_msg(my_socket):
         """Extract message from protocol, without the length field
            If length field does not include a number, returns False, "Error" """
         with RECVE_LOCK:
-            data_length = my_socket.recv(LENGTH_FIELD_SIZE).decode()
+            data_length = my_socket.recv(LENGTH_FIELD_SIZE).decode('latin-1')
             data = ""
             if data_length.isdigit():
                 data_length = int(data_length)
@@ -79,21 +80,26 @@ def get_msg(my_socket):
                             r = ""
                             r = my_socket.recv(data_length)
                             print("r", len(r))
-                            data += r.decode()
+                            data += r.decode('latin-1')
                             count += len(r)
                         except BlockingIOError as e:
                             print(e)
                             print(len(data))
+
                     my_socket.setblocking(True)
                 except:
+                    print("recev error")
                     count = 0
                     data = ""
                     while count < data_length:
                         count += 1048576
-                        data += my_socket.recv(1048576).decode()
+                        data += my_socket.recv(1048576).decode('latin-1')
                 finally:
                     integrity = data.split(" ", 1)
-                    data = integrity[1]
+                    try:
+                        data = integrity[1]
+                    except IndexError:
+                        pass
                     integrity = integrity[0]
                     integrity = integrity.split("_", 1)
                     integrity_type = integrity[1]
@@ -101,12 +107,12 @@ def get_msg(my_socket):
                     with INTEGRITY_LOCK:
                         if integrity in INTEGRITY_DICT.keys():
                             if INTEGRITY_DICT[integrity][0] == "msg":
-                                data_save = INTEGRITY_DICT[integrity][1].encode()
+                                data_save = INTEGRITY_DICT[integrity][1].encode('latin-1')
                                 integrity_data = integrity_(data_save).hexdigest()
 
                                 if integrity_data != data:
                                     return False,"", None, "ERROR: samone change your msg "
-                                data = data_save.decode()
+                                data = data_save.decode('latin-1')
                                 INTEGRITY_DICT.pop(integrity)
 
                             elif INTEGRITY_DICT[integrity][0] == "hash":

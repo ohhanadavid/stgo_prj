@@ -192,7 +192,7 @@ def mod_pix(pixel, data, end):
 # Encode data into image
 def encode_enc_gif(newimg, datalist, lendata, codex, primeh, primem, frame_len, t):
     key = (str.zfill(str(t.tm_sec.real), 2) + str.zfill(str(t.tm_min.real), 2) + str.zfill(str(t.tm_hour.real),
-                                                                                           2)).encode()
+                                                                                           2)).encode('latin-1')
     len_key = len(key) * 3
     a = "".join([format(n, '08b') for n in key])
     print("e=", a)
@@ -374,7 +374,7 @@ def encode_info(t, data, img=""):
 
 
     if data.__class__ is str:
-        data = data.encode()
+        data = data.encode('latin-1')
     else:
         data = pickle.dumps(data)
         data = base64.b64encode(data)
@@ -693,9 +693,13 @@ def decode_info(image):
 def main():
     pt = time
     p = Image.open(r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\map.JPG", 'r')
+    p=p.resize((1000,600))
+    p.save("aba.JPG",format="jpeg")
     # u = encode_info(pt.localtime(), "aba saba daba",                    r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\Zz04NjA3ZjljMjQ0ODkxMWViOWRjYzU1OGJkNjI1ZjVkZA==.gif")
-    y = encode_info(pt.localtime(), "lama ama sav af af a tama",
-                    r"C:\Users\David Ohhana\Desktop\College\cyber network\stgo_prj-tag1\code\images\tomer.png")
+    y = encode_info(pt.localtime(), p,
+                    r"C:\Users\David Ohhana\Desktop\College\cyber network\project\code\images\Zz04NjA3ZjljMjQ0ODkxMWViOWRjYzU1OGJkNjI1ZjVkZA==.gif")
+    b=decode_info(y)
+    y.save("encoded.gif",save_all=True,format="gif")
     # print(decode_info(u) == "aba saba daba")
     print(decode_info(y) == "lama ama sav af af a tama")
 
