@@ -34,8 +34,25 @@ class Ack(Enum):
     send = 1
     bad = 2
     ack = 3
-    server=4
-    transport=5
+    server = 4
+    transport = 5
+
+
+def ack_massege(send, messages_dict, ack_lict, lock_key=None, ack_number=0):
+    if lock_key is not None:
+        with lock_key:
+            if ack_number == 0:
+                ack_number = str(random.randint(100000, 999999))
+
+            messages_dict[ack_number] = [Ack.waiting, send]
+            ack_lict.append(ack_number)
+    else:
+        if ack_number == 0:
+            ack_number = str(random.randint(100000, 999999))
+
+        messages_dict[ack_number] = [Ack.waiting, send]
+        ack_lict.append(ack_number)
+
 
 
 def create_msg(data):
@@ -65,7 +82,7 @@ def create_msg(data):
 def get_msg(my_socket):
     try:
         count = 0
-        recv_count=1048576
+        recv_count = 1048576
         """Extract message from protocol, without the length field
            If length field does not include a number, returns False, "Error" """
         with RECVE_LOCK:
@@ -78,8 +95,8 @@ def get_msg(my_socket):
                     my_socket.setblocking(False)
                     while count < data_length:
                         try:
-                            if count + recv_count>data_length:
-                                recv_count=data_length-count
+                            if count + recv_count > data_length:
+                                recv_count = data_length - count
                             r = ""
                             r = my_socket.recv(recv_count)
                             print("r", len(r))
@@ -114,7 +131,7 @@ def get_msg(my_socket):
                                 integrity_data = integrity_(data_save).hexdigest()
 
                                 if integrity_data != data:
-                                    return False,"", None, "ERROR: samone change your msg "
+                                    return False, "", None, "ERROR: samone change your msg "
                                 data = data_save.decode('latin-1')
                                 INTEGRITY_DICT.pop(integrity)
 
@@ -123,11 +140,11 @@ def get_msg(my_socket):
                                 integrity_data = integrity_(data).hexdigest()
 
                                 if data_save != integrity_data:
-                                    return False,"", None, "ERROR: samone change your msg "
+                                    return False, "", None, "ERROR: samone change your msg "
                                 INTEGRITY_DICT.pop(integrity)
                         else:
                             INTEGRITY_DICT[integrity] = (integrity_type, data)
-                            return True,"", "waiting", None
+                            return True, "", "waiting", None
 
                     cmd_get = data.split(" ", 2)
                     if len(cmd_get) == 2:
@@ -137,7 +154,7 @@ def get_msg(my_socket):
 
 
             else:
-                # if client fall by ctrl+c
+                # if client fall by ctrl+page_number
                 if data_length == "":
                     return False, None, "ERROR: This message without length field "
                 return False, None, "ERROR: This message without length field "

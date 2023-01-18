@@ -6,7 +6,6 @@ import math
 import os
 import pickle
 import random
-import time
 import tkinter.filedialog
 from math import *
 
@@ -28,21 +27,34 @@ PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 def not_encoded_gif(gif):
+    """
+    Set the gif as unencrypted
+    :param gif:
+    :return:
+    """
     try:
+        # create a buffer to store the modified gif
         buffer = io.BytesIO()
         with gif as new_img:
+            # create a dictionary to store each frame of the gif
             pixel_dict = dict()
+            # copy all frames of the gif into a list
             frames = [frame.copy() for frame in ImageSequence.Iterator(new_img)]
+            # store each frame in the dictionary with its index as the key
             for i, frame in enumerate(frames):
                 pixel_dict[i] = frame
+            # get the pixels of the first frame
             pix_encode = pixel_dict[0].load()
+            # get the value of the first pixel
             pixel = pix_encode[0, 0]
+            # check if the pixel value is an integer
             if pixel.__class__ is int:
                 if pixel % 2 == 0:
                     if pixel == 0:
                         pixel += 1
                     else:
                         pixel -= 1
+            # check if the pixel value is a tuple or list
             if pixel.__class__ is tuple or pixel.__class__ is list:
                 for i in pixel[:3]:
                     if pixel % 2 == 0:
@@ -50,8 +62,9 @@ def not_encoded_gif(gif):
                             pixel += 1
                         else:
                             pixel -= 1
+            # set the modified pixel value
             pix_encode[0, 0] = pixel
-            # pixel_dict[0] = pix_encode
+            # save the modified gif using the buffer
             frames[0].save(buffer, format="gif", save_all=True, append_images=frames[1:])
             gif_image = buffer.getvalue()
             return Image.open(io.BytesIO(gif_image))
@@ -93,25 +106,46 @@ def prime(n):
 
 
 def encode_enc(new_img, data_list, len_data, codex, prime_h, prime_m):
+    """
+    Encrypting the information inside an image
+    :param new_img:
+    :param data_list:
+    :param len_data:
+    :param codex:
+    :param prime_h:
+    :param prime_m:
+    :return:
+    """
+    # Get the width and height of the image
     w = new_img.size[0]
     h = new_img.size[1]
+    # Convert the image to RGB mode if it is not already in that mode
     if new_img.mode != 'RGB':
         new_img = new_img.convert("RGB")
+    # Initialize an empty list to keep track of the pixels that have been modified
     list_pix = []
+    # Create iterator objects for the data and codex lists
     data = iter(data_list)
     c = iter(codex)
+    # Initialize a count to keep track of how many bits have been added to the pixel
     count = 0
+    # Initialize a flag to indicate whether to get the next key
     next_key = True
+    # Iterate through the data
     for i in range(len_data):
+        # Iterate through the RGB values of the pixel
         for k in range(3):
             if next_key:
                 try:
+                    # Get the next two items from the codex list
                     key1 = c.__next__()
                     key2 = c.__next__()
+                    # Reset the flag
                     next_key = False
                 except StopIteration as e:
                     print(e)
                     next_key = False
+                # Get the ASCII values of the keys
                 key1 = ord(key1)
                 key2 = ord(key2)
 
@@ -121,6 +155,7 @@ def encode_enc(new_img, data_list, len_data, codex, prime_h, prime_m):
                     xy = key1 + key2
                 else:
                     xy = key2 * key1
+                # Get the next three items from the data list
                 se = data.__next__() + data.__next__() + data.__next__()
                 end.end_data = False
                 end.end_word = False
@@ -138,6 +173,7 @@ def encode_enc(new_img, data_list, len_data, codex, prime_h, prime_m):
             x = int((xy * prime_h) % w)
             y = int((xy * prime_m) % h)
             salt = 1
+            # Check if the pixel has already been modified
             while (x, y) in list_pix:
                 x = int((x + prime_h * salt) % w)
                 y = int((y + prime_m + salt) % h)
@@ -147,7 +183,7 @@ def encode_enc(new_img, data_list, len_data, codex, prime_h, prime_m):
             if y < 0:
                 y *= -1
             list_pix.append((x, y))
-
+            # Get the pixel and modify it
             pixel = new_img.getpixel((x, y))[:3]
             pixel = mod_pix(pixel, se, end)
             new_img.putpixel((x, y), pixel)
@@ -156,6 +192,13 @@ def encode_enc(new_img, data_list, len_data, codex, prime_h, prime_m):
 
 
 def mod_pix(pixel, data, end):
+    """
+    Encrypting the information inside the pixel
+    :param pixel:
+    :param data:
+    :param end:
+    :return:
+    """
     # Extracting 3 pixels at a time
     pix = list(pixel)
     # Pixel value should be made
@@ -175,7 +218,6 @@ def mod_pix(pixel, data, end):
     if end.end_data is True:
         if pix[-1] % 2 == 0:
             if pix[-1] != 0:
-
                 pix[-1] -= 1
 
             else:
@@ -185,12 +227,26 @@ def mod_pix(pixel, data, end):
         if pix[-1] % 2 != 0:
             pix[-1] -= 1
 
-    pix = tuple(pix)
-    return pix[0:3]
+    # truncate the modified list to its first 3 elements
+    pix = tuple(pix[0:3])
+    return pix
 
 
 # Encode data into image
 def encode_enc_gif(new_img, data_list, len_data, codex, prime_h, prime_m, frame_len, t):
+    """
+    The function receives the gif, and the keys and information and encrypts them inside the gif
+    :param new_img:the gif
+    :param data_list: The information is in binary
+    :param len_data:The number of bytes
+    :param codex:The encryption key
+    :param prime_h:hourly encryption parameter
+    :param prime_m:Encryption parameter by minutes
+    :param frame_len:the number of frames
+    :param t:the key
+    :return:
+    """
+    # Setting the key
     key = (str.zfill(str(t.tm_sec.real), 2) + str.zfill(str(t.tm_min.real), 2) + str.zfill(str(t.tm_hour.real),
                                                                                            2)).encode('latin-1')
     len_key = len(key) * 3
@@ -205,15 +261,18 @@ def encode_enc_gif(new_img, data_list, len_data, codex, prime_h, prime_m, frame_
 
     key_list = []
     buffer = io.BytesIO()
+
     with new_img as new_img:
         frames = [frame.copy() for frame in ImageSequence.Iterator(new_img)]
         pixel_dict = dict()
         end = EndOfWord
         count = 0
+        # Convert the gif to an array
         for i, frame in enumerate(frames):
             pixel_dict[i] = frame
         pix_encode = pixel_dict[0].load()
         pixel = pix_encode[0, 0]
+        # Set gif as an encoder
         if pixel.__class__ is int:
             if pixel % 2 != 0:
                 pixel -= 1
@@ -224,6 +283,7 @@ def encode_enc_gif(new_img, data_list, len_data, codex, prime_h, prime_m, frame_
         pix_encode[0, 0] = pixel
         pixel_dict[0] = pix_encode
         pixels = pixel_dict[1].load()
+        # Encrypt the key
         for i in range(len_key):
             if count + 3 < 8:
                 se = key.__next__() + key.__next__() + key.__next__()
@@ -249,10 +309,12 @@ def encode_enc_gif(new_img, data_list, len_data, codex, prime_h, prime_m, frame_
         r = len(list_pix)
 
         print(i)
+        # If you choose a new key
         change_key = True
+        # Encrypting the information
         for i in range(len_data):
             for k in range(3):
-
+                # Key selection
                 if change_key:
                     try:
                         key1 = c.__next__()
@@ -265,6 +327,7 @@ def encode_enc_gif(new_img, data_list, len_data, codex, prime_h, prime_m, frame_
                     key1 = ord(key1)
                     key2 = ord(key2)
                     frame1 = ord(frame1)
+                # Defining the key and choosing the information to encrypt
                 if count + 3 < 8:
                     if count >= 3:
                         xy = key1 + key2
@@ -281,12 +344,14 @@ def encode_enc_gif(new_img, data_list, len_data, codex, prime_h, prime_m, frame_
                     frame = (xy - frame1)
                     change_key = True
                     se = data.__next__() + data.__next__()
+                    # If it's the end of a word or the encryption
                     if i == len_data - 1:
                         end.end_data = True
                     else:
                         end.end_data = False
                         end.end_word = True
                     count = 0
+                # Checking that the selected pixel is normal and that we have not used it
                 salt = 1
                 while frame % frame_len == 0:
                     frame += salt
@@ -310,7 +375,7 @@ def encode_enc_gif(new_img, data_list, len_data, codex, prime_h, prime_m, frame_
                 end = EndOfWord
 
                 pixels = pixel_dict[frame].load()
-
+                # Encrypting the information
                 pixel = pixels[x, y]
                 pixels[x, y] = mod_pix(pixel, se, end)
 
@@ -320,19 +385,38 @@ def encode_enc_gif(new_img, data_list, len_data, codex, prime_h, prime_m, frame_
     return Image.open(io.BytesIO(gif_image))
 
 
-def encoded_in_gif(books, c, codex, data, h, image, len_data, m, num_book, page_obj, pdf_file, t):
+def encoded_in_gif(books, page_number, codex, data, hour_key, image, len_data, min_key, num_book, page_obj, pdf_file,
+                   t):
+    """
+    The function receives information and a key and finds the codex to encrypt
+    :param books: The Cipher Codex Repository
+    :param page_number: which page to start from
+    :param codex:
+    :param data:
+    :param hour_key:
+    :param image:
+    :param len_data:
+    :param min_key:
+    :param num_book:
+    :param page_obj:
+    :param pdf_file:
+    :param t:
+    :return: 
+    """
     image_frame_len = image.n_frames
+    # If the encrypted image is smaller than the amount of information to be encrypted
     if len_data > image.size[0] * image.size[1] * image_frame_len:
         ratio = image.size[0] / image.size[1]
         rows = math.ceil(math.sqrt(len_data * 3) * ratio)
         columns = math.ceil(math.sqrt(len_data * 3) / ratio * 3)
         image = image.resize((rows, columns))
+    # Choosing the codex
     while len(codex) < len_data * 3:
         try:
-            print(c)
+            print(page_number)
             codex += page_obj.extract_text()
-            c += 1
-            page_obj = pdf_file.pages[c]
+            page_number += 1
+            page_obj = pdf_file.pages[page_number]
         except IndexError:
             if num_book + 1 < len(books):
                 num_book += 1
@@ -341,21 +425,30 @@ def encoded_in_gif(books, c, codex, data, h, image, len_data, m, num_book, page_
             pdf_file_obj = PATH + r'\\file\\' + books[num_book]
             pdf_file_obj = open(pdf_file_obj, 'rb')
             pdf_file = PyPDF2.PdfReader(pdf_file_obj)
-            c = 0
-            page_obj = pdf_file.pages[c]
+            page_number = 0
+            page_obj = pdf_file.pages[page_number]
     print(len(codex), len_data)
-    save_image = encode_enc_gif(image, data, len_data, codex, prime(h), prime(m), image_frame_len, t)
+    save_image = encode_enc_gif(image, data, len_data, codex, prime(hour_key), prime(min_key), image_frame_len, t)
 
     return save_image
 
 
 def encode_info(t, data, img=""):
+    """
+
+    :param t: time key
+    :param data: what
+    :param img: where
+    :return:Encrypted information
+    """
+    # Selecting the encryption file
     books = find_path('file')
     num_book = int(pow(t.tm_min.real, t.tm_sec.real) % len(books))
     pdf_file_obj = PATH + r'\\file\\' + books[num_book]
     pdf_file_obj = open(pdf_file_obj, 'rb')
     # creating a pdf reader object
     pdf_file = PyPDF2.PdfReader(pdf_file_obj)
+
     try:
         if img == "":
             images_in_dir = find_path('images')
@@ -381,19 +474,37 @@ def encode_info(t, data, img=""):
     pages = len(pdf_file.pages)
     h = t.tm_hour.real
     m = t.tm_min.real
-    c = (h * m) % pages
-    page_obj = pdf_file.pages[c]
+    page_number = (h * m) % pages
+    page_obj = pdf_file.pages[page_number]
     codex = ""
     if image.__class__ is not GifImageFile:
-        save_image = encoded_in_image(books, c, codex, data, h, image, len_data, m, num_book, page_obj, pdf_file)
+        save_image = encoded_in_image(books, page_number, codex, data, h, image, len_data, m, num_book, page_obj,
+                                      pdf_file)
     elif image.__class__ is GifImageFile:
-        save_image = encoded_in_gif(books, c, codex, data, h, image, len_data, m, num_book, page_obj, pdf_file, t)
+        save_image = encoded_in_gif(books, page_number, codex, data, h, image, len_data, m, num_book, page_obj,
+                                    pdf_file, t)
     else:
         save_image = ""
     return save_image
 
 
-def encoded_in_image(books, page_number_, codex, data, h, image, len_data, m, num_book, page_obj, pdf_file):
+def encoded_in_image(books, page_number_, codex, data, hour_key, image, len_data, min_key, num_book, page_obj,
+                     pdf_file):
+    """
+    The function receives information and a key and finds the codex to encrypt
+    :param books: The Cipher Codex Repository
+    :param page_number_: which page to start from
+    :param codex:
+    :param data:
+    :param hour_key:
+    :param image:
+    :param len_data:
+    :param min_key:
+    :param num_book:
+    :param page_obj:
+    :param pdf_file:
+    :return:
+    """
     if len_data > image.size[0] * image.size[1] * 6:
         ratio = image.size[0] / image.size[1]
         rows = math.ceil(math.sqrt(len_data * 3) * ratio)
@@ -416,7 +527,7 @@ def encoded_in_image(books, page_number_, codex, data, h, image, len_data, m, nu
             page_number_ = 0
             page_obj = pdf_file.pages[page_number_]
     print(len(codex), len_data)
-    save_image = encode_enc(image, data, len_data, codex, prime(h), prime(m))
+    save_image = encode_enc(image, data, len_data, codex, prime(hour_key), prime(min_key))
     return save_image
 
 
@@ -447,6 +558,7 @@ def decode_image(image):
     while True:
         if next_key:
             xy = []
+            # Choosing the encryption keys
             for i in range(2):
                 try:
 
@@ -489,7 +601,7 @@ def decode_image(image):
             y *= -1
         list_pix.append((x, y))
         pixels = image.getpixel((x, y))[:3]
-        # string of binary data
+
 
         for i in pixels:
             count += 1
@@ -498,6 +610,7 @@ def decode_image(image):
             else:
                 binstr += '1'
             if count == 8:
+                # string of binary data
                 data += chr(int(binstr, 2))
                 binstr = ''
                 count = 0
@@ -509,6 +622,11 @@ def decode_image(image):
 
 
 def decode_gif(image):
+    """
+    The function receives the gif and checks what the encryption key is then decrypts the encryption
+    :param image:
+    :return:
+    """
     key = ""
     count = 0
     binstr = ''
@@ -527,7 +645,7 @@ def decode_gif(image):
         elif pixel.__class__ is tuple or pixel.__class__ is list:
             if sum(pixel) % 2 != 0:
                 return None
-
+        # Getting the encryption key
         flag = True
         for k in range(0, 18):
             pixels = pixel_dict[1].getpixel((1, k))[:3]
@@ -577,6 +695,7 @@ def decode_gif(image):
         print(len(pixel_dict))
         frame_len = image.n_frames
         key_flag = True
+        # Decryption
         while True:
             if key_flag:
                 xy_frame = []
@@ -600,6 +719,7 @@ def decode_gif(image):
                         c = iter(page_obj.extract_text())
                         xy_frame.append(ord(c.__next__()))
                         key_flag = False
+            # Choosing the encryption keys
             if count + 3 < 8:
                 if count >= 3:
                     mxy = xy_frame[0] + xy_frame[1]
@@ -635,8 +755,8 @@ def decode_gif(image):
             image.seek(frame_number)
             image.load()
             pixels = image.getpixel((x, y))[:3]
-            # string of binary data
 
+            #Decryption using the keys
             for i in pixels:
                 count += 1
                 if i % 2 == 0:
@@ -644,6 +764,7 @@ def decode_gif(image):
                 else:
                     binstr += '1'
                 if count == 8:
+                    # string of binary data
                     data += chr(int(binstr, 2))
                     binstr = ''
                     count = 0
@@ -657,6 +778,11 @@ def decode_gif(image):
 
 
 def decode_info(image):
+    """
+    which receives an image and sends it to be decoded
+    :param image:
+    :return:
+    """
     if image.format.lower() == "gif" or image.__class__ is GifImageFile:
         data = decode_gif(image)
         if data is None:

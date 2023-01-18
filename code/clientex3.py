@@ -7,6 +7,7 @@ import argparse
 import json
 import os.path
 import socket
+import time
 import tkinter.filedialog
 import tkinter.messagebox as messagebox
 import tkinter.scrolledtext
@@ -73,6 +74,11 @@ IMAGE_TYPE = [JpegImageFile.__name__, PngImageFile.__name__, GifImageFile.__name
 
 
 def find_name(name):
+    """
+    The function receives a name of a contact and returns a key for the contact
+    :param name: What a name to look for
+    :return:Returns a key to a contact
+    """
     for i in CONTACT_MENU.keys():
         if CONTACT_MENU[i].name == name:
             return i
@@ -80,25 +86,29 @@ def find_name(name):
 
 
 def get_name():
+    """
+    The function asks for contact details
+    """
+
     def send_name():
         msg = get_name_text.get()
+        # Checking that there are no invalid characters
         for i in msg:
             if i in BLACK_LIST_SYMBOLS:
-                label_error.configure(text="name contact cant include [,],{,}!")
+                label_error_get_name.configure(text="name contact cant include [,],{,}!")
                 return
+        # Looking for a contact by name on the server
         if msg in CONTACT_MENU.keys():
             msg = CONTACT_MENU[msg]
-        with massage_list_lock:
-            ack_number = str(random.randint(100000, 999999))
-            # massage_list_lock.acquire(blocking=False)
-            msg = " get_name " + msg
-            messages_ack[ack_number] = [Ack.waiting, ("", msg, OutputType.sending, "")]
-            messages_to_write.append(ack_number)
-            # massage_list_lock.release()
+
+        msg = " get_name " + msg
+        send = ("", msg, OutputType.sending, "")
+        ack_massege(send, messages_ack, messages_to_write, massage_list_lock)
         get_name_window.destroy()
 
+    # create GUI
     get_name_window = Tk()
-    label_error = Label(get_name_window)
+    label_error_get_name = Label(get_name_window)
     get_name_window.title("get name")
     get_name_text = Entry(get_name_window, width=20)
     cmd_send_button = Button(get_name_window, text="send", command=send_name)
@@ -107,34 +117,52 @@ def get_name():
     get_name_window.mainloop()
 
 
+def clean_data(inpot):
+    count = 0
+    for i in inpot:
+        if i in EMPTY_DATA:
+            count += 1
+        else:
+            break
+    return count
+
+
 def send_massage(encode, image, ather_file=False):
+    """
+    The function prepares the message according to the client's request
+    :param encode:If to code
+    :param image: If you send a picture
+    :param ather_file: If you send a file
+    """
     msg_e = ""
     to_input = str(text_input_to.get())
     if to_input in EMPTY_DATA:
         label_error.configure(text="must by address!")
         return
+
     for i in to_input:
-        if i in BLACK_LIST_SYMBOLS:
-            label_error.configure(text="name contact cant include [,],{,}!")
+        if not check_to_input(i, label_error):
             return
+
     label_error.configure(text="")
+    # division into addresses
     if ',' in to_input:
         to_input = set(to_input.split(','))
     else:
         to_input = [to_input]
+
     msg = ""
+
+    # send string
     if not image and not ather_file:
         msg = str(text_input_massage.get(1.0, END))
-        count = 0
-        for i in msg:
-            if i in EMPTY_DATA:
-                count += 1
-            else:
-                break
-        msg = msg[count:]
+
+        msg = msg[clean_data(msg):]
         if msg in EMPTY_DATA:
             return
         type_msg = msg.__class__.__name__
+
+    # send a picture
     elif image:
         img = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(
             ("Image files", "*.png"), ("Image files", "*.jpg"), ("Image files", "*.jpeg"), ("Gif", '*.gif')))
@@ -142,18 +170,25 @@ def send_massage(encode, image, ather_file=False):
             return
         msg = Image.open(img, 'r')
         type_msg = msg.__class__.__name__
+        # If you want to encrypt an image (just for speed)
         if encode is OutputType.sending_e:
             msg = msg.resize((50, 50))
+
         if msg.__class__ is GifImageFile:
+            # To inform that the gif does not encrypt information
             msg = not_encoded_gif(msg)
+            # Making a gif to send
             buffer = io.BytesIO()
             msg.save(buffer, save_all=True, format="gif")
             msg = buffer.getvalue()
         else:
+            # Preparing a picture to send
             msg = pickle.dumps(msg)
             msg = base64.b64encode(msg)
             msg = "".join([format(n, '08b') for n in msg])
         print("len image:", len(msg))
+
+    # send file
     elif ather_file:
         file_path = tkinter.filedialog.askopenfilename(title="open image to send", filetypes=(("files", "*.*"),))
         if os.path.isfile(file_path):
@@ -166,7 +201,10 @@ def send_massage(encode, image, ather_file=False):
             msg = "<" + type_msg + '>' + file_
             msg_e = file_path.split(r'//')[-1] + " send"
     send_to = set()
+
+    # If the information is encrypted
     if encode is OutputType.sending_e:
+        # Defining the type of encrypted information
         if ather_file:
             msg_e = "msg " + str(send_to) + type_msg + " " + file_path.split(r'\\')[-1]
             msg = '<' + type_msg + '>' + msg
@@ -175,10 +213,13 @@ def send_massage(encode, image, ather_file=False):
         else:
             msg_e = "msg " + str(send_to) + "str" + " " + msg
             msg = "<str>" + msg
+
+        # Choosing an encryption image
         path_image = tkinter.filedialog.askopenfilename(title="open image", filetypes=(
             ("Image files", "*.png"), ("Image files", "*.jpg"), ("Image files", "*.jpeg"), ("Gif", '*.gif')))
         if path_image is None or path_image == "":
             return
+        # Encrypting the information
         encoded_image = encode_info(time.localtime(), msg, path_image)
         if encoded_image.__class__ is GifImageFile:
             type_msg = GifImageFile.__name__
@@ -191,7 +232,7 @@ def send_massage(encode, image, ather_file=False):
             msg = base64.b64encode(msg)
             msg = "".join([format(n, '08b') for n in msg])
         print("msg-e:", len(msg))
-
+    # Saving the destinations by name in the server
     for i in to_input:
         if i in CONTACT_MENU.keys():
             contact = CONTACT_MENU[i]
@@ -209,45 +250,41 @@ def send_massage(encode, image, ather_file=False):
     ack_number = str(random.randint(100000, 999999))
     msg = ack_number + " msg " + str(send_to) + type_msg + " " + msg
     send_msg = (to_input, msg, encode, msg_e)
-
-    with massage_list_lock:
-        messages_to_write.append(ack_number)
-        messages_ack[ack_number] = [Ack.waiting, send_msg]
-    # massage_list_lock.release()
+    ack_massege(send_msg, messages_ack, messages_to_write, massage_list_lock, ack_number)
     text_input_to.delete(0, END)
     text_input_massage.delete(1.0, END)
     return
 
 
 def get_names():
-    with massage_list_lock:
-        ack_number = str(random.randint(100000, 999999))
-        msg = " get_names"
-        messages_ack[ack_number] = [Ack.waiting, ("", msg, OutputType.sending, "")]
-        messages_to_write.append(ack_number)
+    """
+    The function requests to serve all the contacts registered with it
+    """
+    msg = " get_names"
+    ack_massege(("", msg, OutputType.sending, ""), messages_ack, messages_to_write, massage_list_lock)
 
 
 def change_name():
+    """
+    Asks the server to change the name with him
+    """
+
     def change_name_action():
+        """
+
+        Sends the new name to the server
+        """
         new_name = str(text_new_name.get())
-        for i in new_name:
-            if i in BLACK_LIST_SYMBOLS:
-                label_error.configure(text="name contact cant include [,],{,}!")
-                return
+        if not check_to_input(new_name, label_error_name_setting):
+            return
         new_name = " name " + new_name
-
-        with massage_list_lock:
-
-            ack_number = str(random.randint(100000, 999999))
-
-            send_msg = ("", new_name, OutputType.sending, "")
-            messages_ack[ack_number] = [Ack.waiting, send_msg]
-            messages_to_write.append(ack_number)
-
+        send_msg = ("", new_name, OutputType.sending, "")
+        ack_massege(send_msg, messages_ack, messages_to_write, massage_list_lock)
         new_name_win.destroy()
 
+    # create GUI
     new_name_win = Tk()
-    label_error = Label(new_name_win)
+    label_error_name_setting = Label(new_name_win)
     new_name_win.title("create name")
     text_new_name = Entry(new_name_win, width=20)
 
@@ -255,7 +292,7 @@ def change_name():
     new_name_massage = Label(new_name_win, text="please enter new  name :", width=25, height=1)
     new_name_massage.pack()
     text_new_name.pack()
-    label_error.pack()
+    label_error_name_setting.pack()
 
     ok_button.pack()
     new_name_win.mainloop()
@@ -264,21 +301,23 @@ def change_name():
 def open_group():
     def create_group():
         group_name = str(text_group_name.get())
-        for i in group_name:
-            if i in BLACK_LIST_SYMBOLS:
-                label_error.configure(text="name contact cant include [,],{,}!")
-                return
+
+        if not check_to_input(group_name, label_error_group):
+            return
+        # Checking if the group name already exists
         if group_name in CONTACT_MENU.keys():
             if not messagebox.askquestion("Info", 'This name already exists, do you want to replace it?'):
                 return
         peoples = set()
+        # Adds the selected contacts to the group
         for i in text_group_people.curselection():
             peoples.add(text_group_people.get(i))
         CONTACT_MENU[group_name] = peoples
         group_window.destroy()
 
+    # create GUI
     group_window = Tk()
-    label_error = Label(group_window)
+    label_error_group = Label(group_window)
     group_window.title("create group")
     frame_group = Frame(group_window, width=20, height=30)
 
@@ -300,14 +339,16 @@ def open_group():
     open_group_massage.pack()
     text_group_name.pack()
     people.pack()
-    label_error.pack()
+    label_error_group.pack()
     frame_group.pack()
-    # text_group_people.pack()
     ok_button.pack()
     group_window.mainloop()
 
 
 def get_contact_info():
+    """
+    Prints the contacts registered with me
+    """
     output_insert_system(END, '\n\rPhon BOOK:', OutputType.system_info.value)
     for item in CONTACT_MENU.items():
         if item[1].__class__ is not set:
@@ -319,13 +360,19 @@ def get_contact_info():
             output_insert_system(END, '\n'.join(item[1]), OutputType.system_info.value)
 
 
+def check_to_input(name, error_label):
+    # Checking that there is no forbidden input
+    for i in name:
+        if i in BLACK_LIST_SYMBOLS:
+            error_label.configure(text="name contact cant include [,],{,}!")
+            return False
+
+
 def add_people():
     def create_people():
         name = str(text__name.get())
-        for i in name:
-            if i in BLACK_LIST_SYMBOLS:
-                label_error.configure(text="name contact cant include [,],{,}!")
-                return
+        if not check_to_input(name, label_error_add_people):
+            return
         if name in CONTACT_MENU.keys():
             if not messagebox.askquestion("Info", 'This name already exists, do you want to replace it?'):
                 return
@@ -338,7 +385,7 @@ def add_people():
         add_window.destroy()
 
     add_window = Tk()
-    label_error = Label(add_window)
+    label_error_add_people = Label(add_window)
     add_window.title("create new phone")
     text__name = Entry(add_window, width=20)
     text__people_by_server = Entry(add_window, width=20)
@@ -354,18 +401,27 @@ def add_people():
 
 
 def getting_msg(ack, data=""):
+    """
+    The function receives the message and distributes it to the sender and the message.
+    The function then checks the message for its type and handles it accordingly, and prints the received message
+    :param ack:Receives the ACK number to return an ACK message that a package has been received
+    :param data:The information that came from the server
+    """
+    # Distribution to sender and message and type message
     data = data.split(" ", 2)
     sender = data[0]
+    # Checking if the sender is in contacts
     for i in CONTACT_MENU.items():
         if i[1] == sender:
             sender = i[0]
-
+    # The message type str,image,file type
     type_msg = data[1]
+    # the message
     data = data[2]
     encrypt = False
     count = 0
-    if True:
-
+    try:
+        # Cleaning the message from empty parts that came with it
         for i in range(len(data)):
             if data[i] in EMPTY_DATA:
                 count += 1
@@ -373,19 +429,25 @@ def getting_msg(ack, data=""):
             else:
                 break
         data = data[count:]
+
         try:
             if type_msg == Image.__name__ or type_msg in IMAGE_TYPE:
+                # If the message is a GIF
                 if type_msg == GifImageFile.__name__:
+                    # If the content arrived as a string and not as bytes
                     if data.__class__ is not bytes:
                         data = data.encode('latin-1')
+                    # Opening as a gif
                     data = Image.open(io.BytesIO(data))
+                    data.save("received gif.gif ", format="gif", save_all=True)
                 else:
+                    # png, jpeg
                     print("len", len(data))
                     data_ = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
                     decoded_b64 = base64.b64decode(data_)
                     data_ = pickle.loads(decoded_b64)
                     data = data_
-
+        # If a gif file arrived and was not caught at first
         except pickle.PickleError as e:
             print(e)
             if data.__class__ is not bytes:
@@ -399,23 +461,30 @@ def getting_msg(ack, data=""):
         except EOFError as e:
             print(e)
 
+        # Checking if it is encrypted information
         if data.__class__ is Image or data.__class__.__name__ in IMAGE_TYPE:
             encode_flag = False
+
             if data.__class__ is GifImageFile:
+                # Checking if the gif has encrypted information
                 encode = decode_info(data)
                 if encode is not None:
                     data = encode
                     encrypt = True
                     encode_flag = True
+            # Checking if the image has encrypted information
             if hasattr(data, "info") or encode_flag:
                 if hasattr(data, "info") and "date" in data.info.keys():
                     data = stego.decode_info(data)
                     encrypt = True
+
         elif data.__class__ is str:
+            # Checking if it is a string or a file
             data = data.split('>', 1)
             if len(data) == 2:
                 data[0] = data[0][1:]
                 try:
+                    # If it is a file save it
                     if data[0] != 'str':
                         data_ = data[1].encode('latin-1')
                         path = tkinter.filedialog.asksaveasfilename(title="save as",
@@ -433,7 +502,7 @@ def getting_msg(ack, data=""):
                     pass
             else:
                 data = data[0]
-
+        # Print the message
         if encrypt:
             if data.__class__ is str:
                 output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
@@ -454,10 +523,11 @@ def getting_msg(ack, data=""):
             messages_to_write.append("ACk" + ack)
             messages_ack["ACk" + ack] = [Ack.ack,
                                          [sender, ack + " " + "ack" + " " + sender, OutputType.sending.value, ""]]
-    # except:
-    #    with massage_list_lock:
-    #        messages_to_write.append("ACk" + ack)
-    #        messages_ack["ACk" + ack] = [Ack.ack, ack + " " + "ack_bad" + " " + sender]
+    except:
+        # If the message is incorrect
+        with massage_list_lock:
+            messages_to_write.append("ACk" + ack)
+            messages_ack["ACk" + ack] = [Ack.ack, ack + " " + "ack_bad" + " " + sender]
 
 
 def ack_methode(ack, cmd):
@@ -573,7 +643,7 @@ def output_insert(start, data, color, receive=True, full_data=False, sender=""):
             else:
                 output = data.split("str", 1)
                 if len(output) == 2:
-                    output = output[0][:-1]+output[1][1:]
+                    output = output[0][:-1] + output[1][1:]
                 else:
                     output = output[0]
                 if sender != "":
@@ -664,6 +734,7 @@ def main1():
                 except KeyError:
                     messages_to_write.remove(message)
                     continue
+                # Sending pending messages
                 if w_msg[0] is Ack.bad or w_msg[0] is Ack.waiting or \
                         w_msg[0] is Ack.ack or w_msg[0] is Ack.server:
                     to_input, data, encrypt, msg_e = w_msg[1]
@@ -852,6 +923,8 @@ def main():
     client_loop.start()
     window.mainloop()
 
+
+# call functions for processes
 
 def call_open_group(open_group_thread):
     if not open_group_thread.is_alive():

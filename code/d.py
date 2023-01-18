@@ -241,7 +241,7 @@ d=hashlib.sha256(b"aba saba daba")
 p=d.digest()
 
 print(p)
-l=['a','d','b','c']
+l=['a','d','b','page_number']
 l.sort()
 print(l)
 
@@ -429,9 +429,9 @@ ii="".join([format(n, '08b') for n in p])
 ll=len(ii)
 t=json.dumps({"size":"800x800", "sindex": "100x10" ,"0":+3 , "1":-3 })
 l=base64.b64decode(p)
-h=pickle.loads(i)
+hour_key=pickle.loads(i)
 t=k.copy()
-h.save("time.png", str("dd.png".split(".")[1].upper()))
+hour_key.save("time.png", str("dd.png".split(".")[1].upper()))
 respone = (requests.get(server+"/",params={"public_key":base64.b64encode(pickle.dumps(public_key))}).content)
 data_block= json.loads(rsa.decrypt(respone,priv_key=private_key).decode(encoding="ascii"))
 """
@@ -464,7 +464,7 @@ def u(f, c):
     # l.pack()
     c = Text(w)
     c.grid(column=1)
-    # c.pack()
+    # page_number.pack()
     b.insert(END, f)
     b.insert(END, '\nTo:')
     b.insert(END, '\nSubject:')

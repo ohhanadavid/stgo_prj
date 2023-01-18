@@ -176,6 +176,12 @@ def message(client_socket, data, ack):
 
 
 def get_name(client_socket, name):
+    """
+    Sends the name saved on the server to the requester
+    :param client_socket:
+    :param name:
+    :return:
+    """
     key = find_name(name)
 
     if key is not None:
@@ -196,12 +202,18 @@ def ack_recv(ack, cmd, data):
         client_socket = DICTIONARY_SOCKETS[data].client_socket
     except KeyError:
         return
-    ack_number = str(random.randint(100000, 999999))
-    MESSAGES_ACK[ack_number] = [Ack.waiting, (client_socket, ack + " " + cmd)]
-    MESSAGES_TO_SEND.append(ack_number)
+    ack_massege((client_socket, ack + " " + cmd), MESSAGES_ACK, MESSAGES_TO_SEND)
 
 
 def check_cmd(ack, cmd, data, client_socket):
+    """
+    Checking the request sent to the server
+    :param ack:
+    :param cmd:
+    :param data:
+    :param client_socket:
+    :return:
+    """
     cmd = cmd.lower()
     if cmd == "get_names":
         get_names(client_socket)
@@ -262,6 +274,11 @@ def main():
 
 
 def hacker_methode_recv(data):
+    """
+    Sending the information to the connected listener
+    :param data:
+    :return:
+    """
     global hacker_list
     try:
         for m in create_msg(data):
@@ -278,6 +295,9 @@ def hacker_methode_recv(data):
 
 
 def send_method():
+    """
+    Sending the information
+    """
     global hacker_server
     global hacker_address
     while True:
@@ -357,13 +377,13 @@ def recv_socket(server_socket):
                     with DICTIONARY_SOCKETS_LOCK:
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))
                 except ValueError:
-                    print(ack," ",cmd," ",data)
+                    print(ack, " ", cmd, " ", data)
                     continue
 
                 if flag:
                     check_cmd(ack, cmd, data, current_socket)
                 else:
-                    # if client fall by ctrl+c
+                    # if client fall by ctrl+page_number
                     if data == "":
                         closing_client(current_socket)
                     else:
