@@ -10,7 +10,6 @@ import tkinter.filedialog
 import tkinter.scrolledtext
 from tkinter import *
 
-import rsa
 import select
 from PIL import ImageTk
 from PIL.BmpImagePlugin import BmpImageFile
@@ -25,7 +24,6 @@ from stego import *
 
 class ContactInfo:
     name = ""
-
 
 
 class OutputType(Enum):
@@ -62,15 +60,25 @@ IMAGE_TYPE = [JpegImageFile.__name__, PngImageFile.__name__, GifImageFile.__name
               TiffImageFile.__name__, IcoImageFile.__name__, PhotoImage.__class__.__name__]
 
 
-
 def getting_msg(ack, data=""):
+    """
+    The function receives the message and distributes it to the sender and the message.
+    The function then checks the message for its type and handles it accordingly, and prints the received message
+    :param ack:Receives the ACK number to return an ACK message that a package has been received
+    :param data:The information that came from the server
+    """
+    # Distribution to sender and message and type message
     data = data.split(" ", 2)
     sender = data[0]
+    # Checking if the sender is in contacts
+    # The message type str,image,file type
     type_msg = data[1]
+    # the message
     data = data[2]
+    encrypt = False
     count = 0
-    if True:
-
+    try:
+        # Cleaning the message from empty parts that came with it
         for i in range(len(data)):
             if data[i] in EMPTY_DATA:
                 count += 1
@@ -78,19 +86,25 @@ def getting_msg(ack, data=""):
             else:
                 break
         data = data[count:]
+
         try:
             if type_msg == Image.__name__ or type_msg in IMAGE_TYPE:
+                # If the message is a GIF
                 if type_msg == GifImageFile.__name__:
+                    # If the content arrived as a string and not as bytes
                     if data.__class__ is not bytes:
                         data = data.encode('latin-1')
+                    # Opening as a gif
                     data = Image.open(io.BytesIO(data))
+                    data.save("received gif.gif ", format="gif", save_all=True)
                 else:
+                    # png, jpeg
                     print("len", len(data))
                     data_ = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
                     decoded_b64 = base64.b64decode(data_)
                     data_ = pickle.loads(decoded_b64)
                     data = data_
-
+        # If a gif file arrived and was not caught at first
         except pickle.PickleError as e:
             print(e)
             if data.__class__ is not bytes:
@@ -103,14 +117,22 @@ def getting_msg(ack, data=""):
             data = Image.open(io.BytesIO(data))
         except EOFError as e:
             print(e)
+
+        # Checking if it is encrypted information
+
         if data.__class__ is str:
+            # Checking if it is a string or a file
             data = data.split('>', 1)
             if len(data) == 2:
                 data[0] = data[0][1:]
                 try:
+                    # If it is a file save it
                     if data[0] != 'str':
                         data_ = data[1].encode('latin-1')
-                        path = PATH+r'\\'+str(random.randint(0,1000000))+'.'+data[0]
+                        path = tkinter.filedialog.asksaveasfilename(title="save as",
+                                                                    filetypes=((data[0], "*." + data[0]),))
+                        if path == "":
+                            path = PATH + r'\\' + str(random.randint(0, 1000000)) + '.' + data[0]
                         file = open(path, 'wb')
                         file.write(data_)
                         file.close()
@@ -121,23 +143,24 @@ def getting_msg(ack, data=""):
                     print("send function error 430")
                     pass
             else:
-                data=data[0]
-
+                data = data[0]
+        # Print the message
 
         if data.__class__ is str:
-            output_insert(END, "msg str " + '\n\r' + sender + " say:\n" '**\n ' + data + ' **',
-                              OutputType.receive_e.value)
-        else:
+            output_insert(END, "msg str " + '\n\r' + sender + '\n\r' + data, OutputType.receive.value)
 
-            output_insert(END, "msg str " + '\n\r' + sender + " send:\n**\n", OutputType.receive_e.value)
+        else:
+            output_insert(END, "msg str " + '\n\r' + sender + " send:\n", OutputType.receive_e.value)
             output_insert(END, data, "")
 
 
+    except:
+        pass
 
 
 def ans(cmd, data, ack):
     if cmd == "msg":
-        getting_msg(data)
+        getting_msg(ack, data)
     elif "ans_all" in cmd:
         data = json.loads(data)
         output = "people in server:" + '\n\r'.join([str(item) for item in data.items()])
@@ -171,14 +194,14 @@ def output_insert_system(start, data, color):
         text_output.config(state=DISABLED)
 
 
-def output_insert(start, data, color, recive=True,full_data=False):
+def output_insert(start, data, color, receive=True, full_data=False, sender=""):
     global INDEX
     with text_output_lock:
         text_output.config(state=NORMAL)
-        if  not recive:
+        if not receive:
             data = data.split(" ", 1)
-            msg_commend=data[0]
-            data=data[1]
+            msg_commend = data[0]
+            data = data[1]
 
         if full_data:
             HISTORY[INDEX] = data + '\n'
@@ -190,7 +213,7 @@ def output_insert(start, data, color, recive=True,full_data=False):
             if color == OutputType.sending.value or color == OutputType.sending_e.value:
                 address = type_msg[0].split("[", 1)
                 if 'msg' in address:
-                    address=msg_commend.split("[", 1)
+                    address = msg_commend.split("[", 1)
                 if len(address) == 2:
                     address = address[1].split("]", 1)[0]
                     text_output.insert(start, address + '\n', color)
@@ -214,13 +237,15 @@ def output_insert(start, data, color, recive=True,full_data=False):
                 try:
                     insert_image(data, start)
                 except ValueError:
-                    text_output.insert(start, "we cant uplode this file" + '\n', color)
+                    text_output.insert(start, "we cant up-lode this file" + '\n', color)
             else:
                 output = data.split("str", 1)
                 if len(output) == 2:
-                    output = output[1]
+                    output = output[0][:-1] + output[1][1:]
                 else:
                     output = output[0]
+                if sender != "":
+                    output = sender + output
                 HISTORY[INDEX] = output + '\n'
                 text_output.insert(start, HISTORY[INDEX], color)
 
@@ -242,10 +267,10 @@ def insert_image(data, start):
                 break
         data = data[i:]
         try:
-            bytedata = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
-            decoded_b64 = base64.b64decode(bytedata)
-            bytedata = pickle.loads(decoded_b64)
-            data = bytedata
+            byte_data = b"".join([bytes(chr(int(data[i:i + 8], 2)), "utf-8") for i in range(0, len(data), 8)])
+            decoded_b64 = base64.b64decode(byte_data)
+            byte_data = pickle.loads(decoded_b64)
+            data = byte_data
         except ValueError:
             if data.__class__ is not bytes:
                 data = data.encode('latin-1')
@@ -361,7 +386,7 @@ def main():
     frame2 = Frame(canvas_window)
     canvas_window.create_window((0, 0), window=frame2, anchor="nw")
 
-    window.title("Chat APP")
+    window.title("its sniffing time!!")
 
     text_output = tkinter.scrolledtext.ScrolledText(frame2, width=100, height=20)
 

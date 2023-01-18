@@ -25,7 +25,7 @@ class EndOfWord:
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 
-
+slash= r'\\'
 def not_encoded_gif(gif):
     """
     Set the gif as unencrypted
@@ -73,7 +73,7 @@ def not_encoded_gif(gif):
 
 
 def find_path(dir_in_path):
-    files = os.walk(PATH + r'\\' + dir_in_path)
+    files = os.walk(PATH + slash + dir_in_path)
     file_l = list(files)[0][-1]
     file_l.sort()
     return file_l
@@ -422,7 +422,7 @@ def encoded_in_gif(books, page_number, codex, data, hour_key, image, len_data, m
                 num_book += 1
             else:
                 num_book = 0
-            pdf_file_obj = PATH + r'\\file\\' + books[num_book]
+            pdf_file_obj = PATH + slash + 'file' + slash + books[num_book]
             pdf_file_obj = open(pdf_file_obj, 'rb')
             pdf_file = PyPDF2.PdfReader(pdf_file_obj)
             page_number = 0
@@ -444,7 +444,7 @@ def encode_info(t, data, img=""):
     # Selecting the encryption file
     books = find_path('file')
     num_book = int(pow(t.tm_min.real, t.tm_sec.real) % len(books))
-    pdf_file_obj = PATH + r'\\file\\' + books[num_book]
+    pdf_file_obj = PATH + slash + 'file' + slash + books[num_book]
     pdf_file_obj = open(pdf_file_obj, 'rb')
     # creating a pdf reader object
     pdf_file = PyPDF2.PdfReader(pdf_file_obj)
@@ -452,14 +452,14 @@ def encode_info(t, data, img=""):
     try:
         if img == "":
             images_in_dir = find_path('images')
-            image = PATH + r'\\images\\' + images_in_dir[random.randint(0, len(images_in_dir))]
+            image = PATH + slash + 'images' + slash + images_in_dir[random.randint(0, len(images_in_dir))]
             print(img)
         elif img.__class__ is str:
             image = Image.open(img, 'r')
         else:
             image = img
     except AttributeError:
-        image = Image.open(PATH + r'\\images\\' + "black.png", 'r')
+        image = Image.open(PATH + slash + 'images' + slash + "black.png", 'r')
     image.info['date'] = t
 
     if data.__class__ is str:
@@ -521,7 +521,7 @@ def encoded_in_image(books, page_number_, codex, data, hour_key, image, len_data
                 num_book += 1
             else:
                 num_book = 0
-            pdf_file_obj = PATH + r'\\file\\' + books[num_book]
+            pdf_file_obj = PATH + slash + 'file' + slash + books[num_book]
             pdf_file_obj = open(pdf_file_obj, 'rb')
             pdf_file = PyPDF2.PdfReader(pdf_file_obj)
             page_number_ = 0
@@ -535,7 +535,7 @@ def encoded_in_image(books, page_number_, codex, data, hour_key, image, len_data
 def decode_image(image):
     books = find_path('file')
     num_book = int(pow(image.info['date'].tm_min.real, image.info['date'].tm_sec.real) % len(books))
-    pdf_file_obj = PATH + r'\\file\\' + books[num_book]
+    pdf_file_obj = PATH + slash + 'file' + slash + books[num_book]
     pdf_file_obj = open(pdf_file_obj, 'rb')
 
     pdf_file = PyPDF2.PdfReader(pdf_file_obj)
@@ -571,7 +571,7 @@ def decode_image(image):
                             num_book += 1
                         else:
                             num_book = 0
-                        pdf_file_obj = PATH + r'\\images\\' + books[num_book]
+                        pdf_file_obj = PATH + slash + 'images' + slash + books[num_book]
                         pdf_file_obj = open(pdf_file_obj, 'rb')
                         pdf_file = PyPDF2.PdfFileReader(pdf_file_obj)
                         s = 0
@@ -676,7 +676,7 @@ def decode_gif(image):
         hour = int(key[4:])
         books = find_path('file')
         num_book = int(pow(_min, sec) % len(books))
-        pdf_file_obj = PATH + r'\\file\\' + books[num_book]
+        pdf_file_obj = PATH + slash + 'file' + slash + books[num_book]
         pdf_file_obj = open(pdf_file_obj, 'rb')
         pdf_file = PyPDF2.PdfReader(pdf_file_obj)
         num_of_lines_pix = image.size[0]
@@ -710,7 +710,7 @@ def decode_gif(image):
                                 num_book += 1
                             else:
                                 num_book = 0
-                            pdf_file_obj = PATH + r'\\images\\' + books[num_book]
+                            pdf_file_obj = PATH + slash + 'images' + slash + books[num_book]
                             pdf_file_obj = open(pdf_file_obj, 'rb')
                             pdf_file = PyPDF2.PdfFileReader(pdf_file_obj)
                             s = 0

@@ -1,4 +1,4 @@
-"""EX 2.6 client implementation
+""" client implementation
    Author:David Ohhana
    Date:06.11.2022
    Possible client commands defined in protocol.py
@@ -54,6 +54,7 @@ def ip_from_user():
 
 
 ip = ip_from_user()
+slash=r'//'
 my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 msg_input = ""
 messages_to_write = []
@@ -199,7 +200,7 @@ def send_massage(encode, image, ather_file=False):
 
             type_msg = file_path.split('.')[-1]
             msg = "<" + type_msg + '>' + file_
-            msg_e = file_path.split(r'//')[-1] + " send"
+            msg_e = file_path.split(slash)[-1] + " send"
     send_to = set()
 
     # If the information is encrypted
@@ -366,6 +367,7 @@ def check_to_input(name, error_label):
         if i in BLACK_LIST_SYMBOLS:
             error_label.configure(text="name contact cant include [,],{,}!")
             return False
+    return True
 
 
 def add_people():
@@ -788,7 +790,7 @@ def connection_fail():
     for i in range(CONNECT_TRYING):
         try:
             time.sleep(3)
-            my_socket.connect(("127.0.0.1", PORT))
+            my_socket.connect((ip, PORT))
             break
         except ConnectionResetError:
             continue

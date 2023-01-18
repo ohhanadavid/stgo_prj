@@ -369,7 +369,7 @@ def recv_socket(server_socket):
                     if hacker_socket in wlist:
                         if data is None:
                             data = ""
-                        hacker_methode_recv(ack + " " + cmd + " " + data)
+
                 except ConnectionResetError:
                     with DICTIONARY_SOCKETS_LOCK:
                         DICTIONARY_SOCKETS.pop(find_socket(current_socket))
