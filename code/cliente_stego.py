@@ -1,8 +1,4 @@
-""" client implementation
-   Author:David Ohhana
-   Date:06.11.2022
-   Possible client commands defined in protocol.py
-"""
+
 import argparse
 import json
 import os.path
